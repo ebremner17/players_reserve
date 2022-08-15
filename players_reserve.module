@@ -1,0 +1,14 @@
+<?php
+
+/**
+ * Implements hook_theme().
+ */
+function players_reserve_theme($existing, $type, $theme, $path) {
+  return [
+    'players_reserve' => [
+      'variables' => [
+        'games' => NULL,
+      ],
+    ],
+  ];
+}

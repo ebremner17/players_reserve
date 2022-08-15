@@ -1,0 +1,7 @@
+{
+    "name": "ebremner17/players_reserve",
+    "description": "Game reserves for Players Inc.",
+    "type": "drupal-custom-module",
+    "homepage": "https://github.com/ebremner17/players_reserve",
+    "keywords": ["Drupal"]
+}

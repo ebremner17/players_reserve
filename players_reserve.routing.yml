@@ -1,0 +1,7 @@
+players_reserve.reserve:
+  path: '/reserve'
+  defaults:
+    _controller: '\Drupal\players_reserve\Controller\PlayersReserve::reserve'
+    _title: 'Players Inc. Reserve'
+  requirements:
+    _permission: 'access content'
