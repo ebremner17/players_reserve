@@ -10,5 +10,10 @@ function players_reserve_theme($existing, $type, $theme, $path) {
         'games' => NULL,
       ],
     ],
+    'players_reserve_add' => [
+      'variables' => [
+        'games' => NULL,
+      ],
+    ],
   ];
 }

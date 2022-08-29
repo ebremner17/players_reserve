@@ -4,7 +4,10 @@ namespace Drupal\players_reserve\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\paragraphs\Entity\Paragraph;
+use Drupal\Core\Messenger\MessengerInterface;
+use Drupal\Core\Session\AccountProxyInterface;
+use Drupal\Core\Database\Connection;
+use Drupal\players_reserve\Service\PlayersService;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -20,13 +23,53 @@ class PlayersReserve extends ControllerBase {
   protected $entityTypeManager;
 
   /**
+   * The account proxy.
+   *
+   * @var \Drupal\Core\Session\AccountProxyInterface
+   */
+  protected $account;
+
+  /**
+   * The Messenger service.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
+   * The database connection.
+   *
+   * @var \Drupal\Core\Database\Connection
+   */
+  protected $database;
+
+  protected $playersService;
+
+  /**
    * Constructor.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTyperManager
    *   The entity type manager.
+   * @param \Drupal\Core\Session\AccountProxyInterface $account
+   *   The current user.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger.
+   * @param \Drupal\Core\Database\Connection $database
+   *   The database
    */
-  public function __construct(EntityTypeManagerInterface $entityTypeManager) {
+  public function __construct(
+    EntityTypeManagerInterface $entityTypeManager,
+    AccountProxyInterface $account,
+    MessengerInterface $messenger,
+    Connection $database,
+    PlayersService $playersService
+  ) {
+
     $this->entityTypeManager = $entityTypeManager;
+    $this->account = $account;
+    $this->messenger = $messenger;
+    $this->database = $database;
+    $this->playersService = $playersService;
   }
 
   /**
@@ -34,7 +77,11 @@ class PlayersReserve extends ControllerBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('entity_type.manager')
+      $container->get('entity_type.manager'),
+      $container->get('current_user'),
+      $container->get('messenger'),
+      $container->get('database'),
+      $container->get('players_reserve.players_service')
     );
   }
 
@@ -44,81 +91,61 @@ class PlayersReserve extends ControllerBase {
    * @return array
    *   A simple renderable array.
    */
-  public function reserve() {
+  public function reserve($date = NULL) {
 
     // Array to hold the game info.
     $games = [];
 
-    // Todays time, need this to get what is the current
-    // date.  If we are less than 4 am into the next day
-    // the current date is yesterday.
-    $time = date('G');
-
-    // Get the correct date based on the time.
-    if ($time >= 0 && $time <= 4) {
-      $date = date('Y-m-d', strtotime("-1 days"));
-    }
-    else {
-      $date = date('Y-m-d');
+    if (!$date) {
+      // Get the correct date.
+      $date = $this->playersService->getCorrectDate($date);
     }
 
     // Get the node based on the current date.
-    $node = $this->entityTypeManager()
-      ->getStorage('node')
-      ->loadByProperties([
-        'field_game_date' => $date
-      ]);
+    $node = $this->playersService->getGameNodeByDate($date);
 
     // If there is node, get the info about the games.
     if ($node) {
 
-      // Get the current node, using entity type manager
-      // puts all the nodes in array, we are only concerned
-      // with the first and should be only node.
-      $node = current($node);
+      // Flag for if floor.
+      $games['floor'] = $this->playersService->isFloor();
 
-      // Get data from field.
-      if ($paragraph_field_items = $node->get('field_game_types')->getValue()) {
+      // Add the nid to the variables.
+      $games['nid'] = $node->id();
 
-        // Get storage. It very useful for loading a small number of objects.
-        $paragraph_storage = $this->entityTypeManager()->getStorage('paragraph');
+      // Get the current user.
+      $user = $this->playersService->getCurrentUser();
 
-        // Collect paragraph field's ids.
-        $ids = array_column($paragraph_field_items, 'target_id');
+      // Set the user status to false,
+      // change only if logged in and not
+      // registered for the games.
+      $games['status'] = FALSE;
 
-        // Load all paragraph objects.
-        $paragraphs_objects = $paragraph_storage->loadMultiple($ids);
+      // If they are logged in, check if reserved.
+      // If they are not, set the message about being
+      // logged in and registered.
+      if ($this->account->isAuthenticated()) {
 
-        // Step through each of the paragraph items and get
-        // the game info.
-        foreach ($paragraphs_objects as $paragraph) {
+        // Get if user is reserved.
+        $reserve = $this->playersService->checkUserReserved($user->id(), $node->id());
 
-          // Get the game type field.
-          $game_type = $paragraph->field_game_type->value;
-
-          // Get the notes of the game.
-          $notes = $paragraph->field_game_notes->getValue();
-
-          // If there are notes, then get the value and
-          // the format, if not leave as null.
-          if ($notes) {
-            $notes = [
-              '#type' => 'processed_text',
-              '#text' => $notes[0]['value'],
-              '#format' => $notes[0]['format'],
-            ];
-          }
-
-          // Add the game to the games array.
-          $games['games'][] = [
-            'title' => $game_type,
-            'start_time' => $paragraph->field_start_time->value . ' ' . $paragraph->field_start_time_am_pm->value,
-            'end_time' => $paragraph->field_end_time->value . ' ' . $paragraph->field_end_time_am_pm->value,
-            'notes' => $notes,
-          ];
+        // If they are not reserved, set flag to show button.
+        // If they are reserved, set the message that
+        // they are already reserved.
+        if (!$reserve) {
+          $games['status'] = TRUE;
+        }
+        else {
+          $this->messenger()->addStatus('You have already reserved for todays game.');
         }
       }
+      else {
+        $this->messenger()->addError('You must be logged in or registered with Players Inc to reserve a game.');
+      }
     }
+
+    // Get the games.
+    $games['games'] = $this->playersService->getGames($node);
 
     // Set the display date and actual date in the games array.
     $games['display_date'] = date('l F j, Y', strtotime($date));

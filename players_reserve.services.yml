@@ -1,0 +1,4 @@
+services:
+  players_reserve.players_service:
+    class: Drupal\players_reserve\Service\PlayersService
+    arguments: ['@entity_type.manager', '@current_user', '@messenger', '@database']
