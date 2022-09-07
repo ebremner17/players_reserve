@@ -19,3 +19,10 @@ players_reserve_add.form:
     _title: 'Players Inc. Reserve'
   requirements:
     _permission: 'access content'
+players_reserve.autocomplete.users:
+  path: '/admin/players_reserve/autocomplete/users'
+  defaults:
+    _controller: '\Drupal\players_reserve\Controller\UsersAutoCompleteController::handleAutocomplete'
+    _format: json
+  requirements:
+    _permission: 'access content'

@@ -75,6 +75,9 @@ class PlayersReserveAddForm extends FormBase {
     return 'players_add_reserve_form';
   }
 
+  /**
+   * {@inheritdoc}
+   */
   public function buildForm(array $form, FormStateInterface $form_state, $date = NULL) {
 
     // Array to hold the game info.
@@ -120,16 +123,105 @@ class PlayersReserveAddForm extends FormBase {
       return [];
     }
 
+    // Get the games.
     $games['games'] = $this->playersService->getGames($node);
 
+    // Get the display date.
     $form['display_date'] = [
       '#markup' => '<h3>' . date('l F j, Y', strtotime($date)) . '</h3>',
     ];
 
+    // Get the options for the type of games.
     foreach ($games['games'] as $game) {
       $options[$game['title']] = $game['title'];
     }
 
+    // If the user is floor, give option to add a player.
+    if ($this->playersService->isFloor()) {
+
+      // Choose if player is a user on the website.
+      $form['player_is_user'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Is player a user of the website?'),
+        '#options' => [
+          '' => '-- Select --',
+          'yes' => 'Yes',
+          'no' => 'No',
+        ],
+      ];
+
+      // Fieldset for the player uid.
+      $form['player_uid'] = [
+        '#type' => 'fieldset',
+        '#title' => $this->t('User'),
+        '#states' => [
+          'visible' => [
+            ':input[name="player_is_user"]' => ['value' => 'yes'],
+          ],
+        ],
+      ];
+
+      // The player uid, using autocomplete.
+      $form['player_uid']['uid'] = [
+        '#type' => 'textfield',
+        '#title' => $this->t('User names'),
+        '#autocomplete_route_name' => 'players_reserve.autocomplete.users',
+      ];
+
+      // Fieldset for the player info, if they are not
+      // a registered user.
+      $form['player_info'] = [
+        '#type' => 'fieldset',
+        '#title' => $this->t('Player Info'),
+        '#states' => [
+          'visible' => [
+            ':input[name="player_is_user"]' => ['value' => 'no'],
+          ],
+        ],
+      ];
+
+      // The player first name.
+      $form['player_info']['first_name'] = [
+        '#type' => 'textfield',
+        '#title' => $this->t('First Name'),
+      ];
+
+      // The player last name.
+      $form['player_info']['last_name'] = [
+        '#type' => 'textfield',
+        '#title' => $this->t('Last Name'),
+      ];
+
+      // Option to add a player to the website.
+      $form['player_info']['add'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Add to website'),
+      ];
+
+      // The player email address.
+      $form['player_info']['email'] = [
+        '#type' => 'email',
+        '#title' => $this->t('Email'),
+        '#states' => [
+          'visible' => [
+            ':input[name="add"]' => ['checked' => TRUE],
+          ],
+        ],
+      ];
+
+      // The player phone number.
+      $form['player_info']['phone'] = [
+        '#type' => 'textfield',
+        '#title' => $this->t('Phone'),
+        '#states' => [
+          'visible' => [
+            ':input[name="add"]' => ['checked' => TRUE],
+          ],
+        ],
+      ];
+    }
+
+    // Fieldset for the list of games.
     $form['games'] = [
       '#type' => 'checkboxes',
       '#options' => $options,
@@ -137,21 +229,29 @@ class PlayersReserveAddForm extends FormBase {
       '#required' => TRUE,
     ];
 
+    // Hidden value for the nid.
     $form['nid'] = [
       '#type' => 'hidden',
       '#value' => $node->id(),
     ];
 
+    // Submit buttons.
     $form['actions']['#type'] = 'actions';
     $form['actions']['submit'] = array(
       '#type' => 'submit',
       '#value' => $this->t('Reserve'),
       '#button_type' => 'primary',
     );
+
     return $form;
   }
 
+  /**
+   * {@inheritdoc}
+   */
   public function submitForm(array &$form, FormStateInterface $form_state) {
+
+    // Get the values from the form state.
     $values = $form_state->getValues();
 
     // Get the current user.

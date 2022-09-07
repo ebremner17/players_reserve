@@ -17,3 +17,56 @@ function players_reserve_theme($existing, $type, $theme, $path) {
     ],
   ];
 }
+
+/**
+ * Implements hook_menu().
+ */
+function players_reserve_menu() {
+  $items = array();
+  $items['players_reserve/autocomplete'] = array(
+    'page callback' => 'players_reserve_field_users_autocomplete',
+    'access arguments' => array('access user profiles'),
+    'type' => MENU_CALLBACK
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter().
+ */
+function players_reserve_form_node_form_alter(&$form, &$form_state, $form_id) {
+  $field_name = 'field_users'; // Change this to your user reference field's machine name.
+  if (!isset($form[$field_name])) { return; }
+  // Attach a custom autocomplete path to our user's field so we can search
+  // by address field first and last names.
+  foreach($form[$field_name]['und'] as $delta => $element) {
+    if (!is_numeric($delta)) { continue; }
+    $form[$field_name]['und'][$delta]['target_id']['#autocomplete_path'] = 'players_reserve/autocomplete';
+  }
+}
+
+/**
+ *
+ */
+function players_reserve_field_users_autocomplete($string) {
+  $field_name = 'field_address'; // Change this to your address field's machine name.
+  $column_name = $field_name . '_name_line';
+  $matches = array();
+  $query = db_select('users', 'u');
+  $query->innerJoin(
+    'field_data_' . $field_name,
+    'address',
+    "address.entity_id = u.uid AND address.bundle = 'user'"
+  );
+  $query->condition("address.$column_name", '%' . db_like($string) . '%', 'LIKE');
+  $query->condition('u.uid', 0, '<>');
+  $query->fields('u', array('uid', 'name'));
+  $query->fields('address', array($column_name));
+  $query->range(0, 10);
+  $results = $query->execute();
+  foreach ($results as $row) {
+    $key = $row->{$column_name} . " ($row->uid)";
+    $matches[$key] = check_plain($row->{$column_name});
+  }
+  drupal_json_output($matches);
+}

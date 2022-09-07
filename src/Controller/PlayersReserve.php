@@ -6,7 +6,6 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Session\AccountProxyInterface;
-use Drupal\Core\Database\Connection;
 use Drupal\players_reserve\Service\PlayersService;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -37,12 +36,10 @@ class PlayersReserve extends ControllerBase {
   protected $messenger;
 
   /**
-   * The database connection.
+   * The players service.
    *
-   * @var \Drupal\Core\Database\Connection
+   * @var \Drupal\players_reserve\Service\PlayersService
    */
-  protected $database;
-
   protected $playersService;
 
   /**
@@ -54,21 +51,20 @@ class PlayersReserve extends ControllerBase {
    *   The current user.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    *   The messenger.
-   * @param \Drupal\Core\Database\Connection $database
-   *   The database
+   * @param \Drupal\players_reserve\Service $playersService
+   *   The players service.
+   * @param
    */
   public function __construct(
     EntityTypeManagerInterface $entityTypeManager,
     AccountProxyInterface $account,
     MessengerInterface $messenger,
-    Connection $database,
     PlayersService $playersService
   ) {
 
     $this->entityTypeManager = $entityTypeManager;
     $this->account = $account;
     $this->messenger = $messenger;
-    $this->database = $database;
     $this->playersService = $playersService;
   }
 
@@ -80,7 +76,6 @@ class PlayersReserve extends ControllerBase {
       $container->get('entity_type.manager'),
       $container->get('current_user'),
       $container->get('messenger'),
-      $container->get('database'),
       $container->get('players_reserve.players_service')
     );
   }

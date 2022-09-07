@@ -11,23 +11,33 @@
   {% if games.games %}
     {% for game in games.games %}
       <h3>{{ game.title }}: {{ game.start_time }} - {{ game.end_time }}</h3>
-      {% if game.list and length >= 0 %}
-        <details class="players-details">
-          <summary class="players-summary">List</summary>
-          <div class="players-content">
-            {{ drupal_form('Drupal\\players_reserve\\Form\\PlayersReserveFloorAddForm', games.nid, game.title) }}
-          </div>
-        </details>
-      {% endif %}
       {% if game.notes %}
         {{ game.notes }}
       {% endif %}
+      {% if games.floor %}
+        <details class="players-details">
+          <summary class="players-summary">List</summary>
+          <div class="players-content">
+            {% if game.list and length >= 0 %}
+              {{ drupal_form('Drupal\\players_reserve\\Form\\PlayersReserveFloorAddForm', games.nid, game.title) }}
+            {% else %}
+              There is currently no players reserved for this game.
+            {% endif %}
+          </div>
+        </details>
+      {% endif %}
     {% endfor %}
 
-    {% if games.status %}
+    {% if games.floor %}
       <a href="reserve/add/{{ games.date }}">
-        <button class="players-button players-button--blue">Add your name to the reserve</button>
+        <button class="players-button players-button--blue">Add player to the reserve</button>
       </a>
+    {% else %}
+      {% if games.status %}
+        <a href="reserve/add/{{ games.date }}">
+          <button class="players-button players-button--blue">Add your name to the reserve</button>
+        </a>
+      {% endif %}
     {% endif %}
   {% else %}
     There are currently no games scheduled, please check back later.
