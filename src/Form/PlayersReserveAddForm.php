@@ -5,6 +5,7 @@
  */
 namespace Drupal\players_reserve\Form;
 
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\players_reserve\Service\PlayersService;
@@ -36,22 +37,33 @@ class PlayersReserveAddForm extends FormBase {
   protected $database;
 
   /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
    * @param \Drupal\players_reserve\Service\PlayersService $playersService
    *  The players service.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    *   The messenger.
    * @param \Drupal\Core\Database\Connection $database
    *   The database
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   *   The entity type manager.
    */
   public function __construct(
     PlayersService $playersService,
     MessengerInterface $messenger,
-    Connection $database
+    Connection $database,
+    EntityTypeManagerInterface $entityTypeManager
   ) {
 
     $this->playersService = $playersService;
     $this->messenger = $messenger;
     $this->database = $database;
+    $this->entityTypeManager = $entityTypeManager;
   }
 
   /**
@@ -64,7 +76,8 @@ class PlayersReserveAddForm extends FormBase {
     // Load the service required to construct this class.
       $container->get('players_reserve.players_service'),
       $container->get('messenger'),
-      $container->get('database')
+      $container->get('database'),
+      $container->get('entity_type.manager')
     );
   }
 
@@ -254,8 +267,47 @@ class PlayersReserveAddForm extends FormBase {
     // Get the values from the form state.
     $values = $form_state->getValues();
 
-    // Get the current user.
-    $user = $this->playersService->getCurrentUser();
+    // Get the nid and the reserve time.
+    $nid = $values['nid'];
+    $reserve_time = date('Y-m-d H:I:s');
+
+    // If the user is a floor then get the info from the
+    // values entered.
+    // If user is not floor then get values from user object.
+    if ($this->playersService->isFloor()) {
+
+      // Get if the player is already a user.
+      $uid = $values['player_is_user'] == 'yes' ? $values['uid'] : NULL;
+
+      // If the player is a user get their name from user object.
+      // If not get name from values entered.
+      if ($uid) {
+
+        // Load the user from the uid supplied.
+        $user = $this->entityTypeManager->getStorage('user')->load($uid);
+
+        // Get the first and last name from the user object.
+        $first_name = $user->field_user_first_name->value;
+        $last_name = $user->field_user_last_name->value;
+      }
+      else {
+
+        // Get the first and last name form the values entered.
+        $first_name = $values['first_name'];
+        $last_name = $values['last_name'];
+      }
+    }
+    else {
+
+      // Get the current user.
+      $user = $this->playersService->getCurrentUser();
+
+      // Get the user id, first name and last name
+      // from the user object.
+      $uid = $user->id();
+      $first_name = $user->field_user_first_name->value;
+      $last_name = $user->field_user_last_name->value;
+    }
 
     // Step through each of the game types and insert
     // the details for the user/game.
@@ -263,12 +315,12 @@ class PlayersReserveAddForm extends FormBase {
       $this->database
         ->insert('players_reserve')
         ->fields([
-          'uid' => $user->id(),
-          'nid' => $values['nid'],
-          'first_name' => $user->field_user_first_name->value,
-          'last_name' => $user->field_user_last_name->value,
+          'uid' => $uid,
+          'nid' => $nid,
+          'first_name' => $first_name,
+          'last_name' => $last_name,
           'game_type' => $game_type,
-          'reserve_time' => date('Y-m-d H:I:s'),
+          'reserve_time' => $reserve_time,
         ])
         ->execute();
     }
