@@ -176,9 +176,9 @@ class PlayersReserveAddForm extends FormBase {
 
       // The player uid, using autocomplete.
       $form['player_uid']['uid'] = [
-        '#type' => 'textfield',
+        '#type' => 'entity_autocomplete',
         '#title' => $this->t('User names'),
-        '#autocomplete_route_name' => 'players_reserve.autocomplete.users',
+        '#target_type' => 'user',
       ];
 
       // Fieldset for the player info, if they are not

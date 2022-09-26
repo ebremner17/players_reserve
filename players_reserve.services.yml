@@ -2,3 +2,10 @@ services:
   players_reserve.players_service:
     class: Drupal\players_reserve\Service\PlayersService
     arguments: ['@entity_type.manager', '@current_user', '@messenger', '@database']
+  alter_entity_autocomplete.route_subscriber:
+    class: Drupal\players_reserve\Routing\AutocompleteRouteSubscriber
+    tags:
+      - { name: event_subscriber }
+  alter_entity_autocomplete.autocomplete_matcher:
+    class: Drupal\players_reserve\EntityAutocompleteMatcher
+    arguments: ['@plugin.manager.entity_reference_selection', '@database']
