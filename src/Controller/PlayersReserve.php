@@ -131,7 +131,13 @@ class PlayersReserve extends ControllerBase {
           $games['status'] = TRUE;
         }
         else {
+
+          // Get the current status messages.
           $messages = $this->messenger->messagesByType('status');
+
+          // If there is no messages or there is no message
+          // about already been added, add the message about
+          // they have already reserved.
           if (
             $messages == NULL ||
             (
@@ -139,11 +145,15 @@ class PlayersReserve extends ControllerBase {
               $messages[0] !== 'You have been added to the reserve.'
             )
           ) {
+
+            // Add the message about already being reserved.
             $this->messenger()->addStatus('You have already reserved for todays game.');
           }
         }
       }
       else {
+
+        // Add the message that you must be logged in.
         $this->messenger()->addError('You must be logged in or registered with Players Inc to reserve a game.');
       }
     }
