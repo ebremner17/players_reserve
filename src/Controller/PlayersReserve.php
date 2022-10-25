@@ -131,7 +131,16 @@ class PlayersReserve extends ControllerBase {
           $games['status'] = TRUE;
         }
         else {
-          $this->messenger()->addStatus('You have already reserved for todays game.');
+          $messages = $this->messenger->messagesByType('status');
+          if (
+            $messages == NULL ||
+            (
+              isset($messages[0]) &&
+              $messages[0] !== 'You have been added to the reserve.'
+            )
+          ) {
+            $this->messenger()->addStatus('You have already reserved for todays game.');
+          }
         }
       }
       else {

@@ -324,6 +324,15 @@ class PlayersReserveAddForm extends FormBase {
         ])
         ->execute();
     }
+
+    if ($this->playersService->isFloor()) {
+      $this->messenger->addStatus('This player has been added to the reserve.');
+    }
+    else {
+      $this->messenger->addStatus('You have been added to the reserve.');
+    }
+
+    $form_state->setRedirect('players_reserve.reserve');
   }
 
 }
