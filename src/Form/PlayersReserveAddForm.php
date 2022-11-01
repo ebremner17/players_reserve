@@ -312,17 +312,22 @@ class PlayersReserveAddForm extends FormBase {
     // Step through each of the game types and insert
     // the details for the user/game.
     foreach ($values['games'] as $game_type) {
-      $this->database
-        ->insert('players_reserve')
-        ->fields([
-          'uid' => $uid,
-          'nid' => $nid,
-          'first_name' => $first_name,
-          'last_name' => $last_name,
-          'game_type' => $game_type,
-          'reserve_time' => $reserve_time,
-        ])
-        ->execute();
+
+      // If there is a game selected, then add it
+      // to the reserve.
+      if ($game_type !== 0) {
+        $this->database
+          ->insert('players_reserve')
+          ->fields([
+            'uid' => $uid,
+            'nid' => $nid,
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'game_type' => $game_type,
+            'reserve_time' => $reserve_time,
+          ])
+          ->execute();
+      }
     }
 
     if ($this->playersService->isFloor()) {
