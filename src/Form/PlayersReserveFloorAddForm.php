@@ -223,9 +223,9 @@ class PlayersReserveFloorAddForm extends FormBase {
         }
         else {
           $query->fields([
-            'remove' => 1,
+            'removed' => 1,
           ]);
-          $status = 'remove';
+          $status = 'removed';
         }
 
         // Add the reserve id to the query.
