@@ -115,8 +115,7 @@ class PlayersReserveFloorAddForm extends FormBase {
         ['data' => t('First Name')],
         ['data' => t('Last Name')],
         ['data' => t('Reserve Time')],
-        ['data' => t('Seated')],
-        ['data' => t('Remove')],
+        ['data' => t('Options')],
       ];
 
       // The table for the list.
@@ -150,14 +149,28 @@ class PlayersReserveFloorAddForm extends FormBase {
           '#markup' => date('g:h a', strtotime($player->reserve_time)),
         ];
 
-        // If player is seated.
-        $form['list'][$count]['seated'] = [
-          '#type' => 'checkbox',
+        // The fieldset for the options.
+        $form['list'][$count]['options'] = [
+          '#type' => 'container',
         ];
 
-        // To remove a player.
-        $form['list'][$count]['remove'] = [
+        // The seated checkbox.
+        $form['list'][$count]['options']['seated'] = [
           '#type' => 'checkbox',
+          '#title' => $this->t('Seated'),
+        ];
+
+        // The remove checkbox.
+        $form['list'][$count]['options']['remove'] = [
+          '#type' => 'checkbox',
+          '#title' => $this->t('Remove'),
+        ];
+
+        // The reserve id, this is needed so we can reference
+        // the entry in the DB.
+        $form['list'][$count]['options']['reserve_id'] = [
+          '#type' => 'hidden',
+          '#value' => $player->reserve_id,
         ];
 
         // Increment the counter.
@@ -185,44 +198,54 @@ class PlayersReserveFloorAddForm extends FormBase {
     // Get the values from the form state.
     $values = $form_state->getValues();
 
-    $old_list = $this->playersService->getList($values['nid'], $values['game_type']);
-
+    // Get the list from the form state.
     $list = $values['list'];
 
-    $count = 0;
-    foreach ($list as $player) {
-      if ($player['seated']) {
+    // Get the list using the players service.
+    $old_list = $this->playersService->getList($values['nid'], $values['game_type']);
 
+    $count = 0;
+    // Step through the list and update any players info.
+    foreach ($list as $player) {
+
+      // If the player is marked as seated or removed, update the DB.
+      if ($player['options']['seated'] || $player['options']['remove']) {
+
+        // Start the query.
+        $query = $this->database->update('players_reserve');
+
+        // Add the field to query based on the selection.
+        if ($player['options']['seated']) {
+          $query->fields([
+            'seated' => 1,
+          ]);
+          $status = 'seated';
+        }
+        else {
+          $query->fields([
+            'remove' => 1,
+          ]);
+          $status = 'remove';
+        }
+
+        // Add the reserve id to the query.
+        $query->condition('reserve_id', $player['options']['reserve_id']);
+
+        // Execute the query.
+        $query->execute();
+
+        // Get the player info from the old list.
         $player_info = $old_list[$count];
 
+        // Get the player name.
+        $player_name = $player_info->first_name . ' ' . $player_info->last_name;
 
-        $num_updated = $this->database
-          ->update('players_reserve')
-          ->fields([
-            'seated' => 1,
-          ])
-          ->condition('reserve_id', $player_info->reserve_id)
-          ->execute();
+        // Add the message.
+        $this->messenger->addStatus($this->t('@player_name has been marked as @status', ['@player_name' => $player_name, '@status' => $status]));
+
+        // Increment the counter.
+        $count++;
       }
-    }
-
-    // Get the current user.
-    $user = $this->playersService->getCurrentUser();
-
-    // Step through each of the game types and insert
-    // the details for the user/game.
-    foreach ($values['games'] as $game_type) {
-      $this->database
-        ->insert('players_reserve')
-        ->fields([
-          'uid' => $user->id(),
-          'nid' => $values['nid'],
-          'first_name' => $user->field_user_first_name->value,
-          'last_name' => $user->field_user_last_name->value,
-          'game_type' => $game_type,
-          'reserve_time' => date('Y-m-d H:I:s'),
-        ])
-        ->execute();
     }
   }
 
