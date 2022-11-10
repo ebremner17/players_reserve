@@ -139,6 +139,9 @@ class PlayersReserveAddForm extends FormBase {
     // Get the games.
     $games['games'] = $this->playersService->getGames($node);
 
+    $form['#prefix'] = '<div class="players-contained-width">';
+    $form['#suffix'] = '</div>';
+
     // Get the display date.
     $form['display_date'] = [
       '#markup' => '<h3>' . date('l F j, Y', strtotime($date)) . '</h3>',
