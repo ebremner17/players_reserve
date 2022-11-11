@@ -237,13 +237,30 @@ class PlayersReserveAddForm extends FormBase {
       ];
     }
 
-    // Fieldset for the list of games.
-    $form['games'] = [
-      '#type' => 'checkboxes',
-      '#options' => $options,
-      '#title' => $this->t('Game types'),
-      '#required' => TRUE,
-    ];
+    // Need to allow for only single selections for players
+    // on Fridays.
+    if (
+      count($options) > 1 &&
+      date("l", strtotime($date)) == "Friday" &&
+      !$this->playersService->isFloor()
+    ) {
+      // Fieldset for the list of games.
+      $form['games'] = [
+        '#type' => 'radios',
+        '#options' => $options,
+        '#title' => $this->t('Game types'),
+        '#required' => TRUE,
+      ];
+    }
+    else {
+      // Fieldset for the list of games.
+      $form['games'] = [
+        '#type' => 'checkboxes',
+        '#options' => $options,
+        '#title' => $this->t('Game types'),
+        '#required' => TRUE,
+      ];
+    }
 
     // Hidden value for the nid.
     $form['nid'] = [
@@ -312,13 +329,35 @@ class PlayersReserveAddForm extends FormBase {
       $last_name = $user->field_user_last_name->value;
     }
 
-    // Step through each of the game types and insert
-    // the details for the user/game.
-    foreach ($values['games'] as $game_type) {
+    // Need to check if we are using multiple selections or not.
+    if (is_array($values['games'])) {
+
+      // Step through each of the game types and insert
+      // the details for the user/game.
+      foreach ($values['games'] as $game_type) {
+
+        // If there is a game selected, then add it
+        // to the reserve.
+        if ($game_type !== 0) {
+          $this->database
+            ->insert('players_reserve')
+            ->fields([
+              'uid' => $uid,
+              'nid' => $nid,
+              'first_name' => $first_name,
+              'last_name' => $last_name,
+              'game_type' => $game_type,
+              'reserve_time' => $reserve_time,
+            ])
+            ->execute();
+        }
+      }
+    }
+    else {
 
       // If there is a game selected, then add it
       // to the reserve.
-      if ($game_type !== 0) {
+      if ($values['games'] !== 0) {
         $this->database
           ->insert('players_reserve')
           ->fields([
@@ -326,7 +365,7 @@ class PlayersReserveAddForm extends FormBase {
             'nid' => $nid,
             'first_name' => $first_name,
             'last_name' => $last_name,
-            'game_type' => $game_type,
+            'game_type' => $values['games'],
             'reserve_time' => $reserve_time,
           ])
           ->execute();
