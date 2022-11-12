@@ -149,7 +149,7 @@ class PlayersReserveAddForm extends FormBase {
 
     // Get the options for the type of games.
     foreach ($games['games'] as $game) {
-      $options[$game['title']] = $game['title'];
+      $options[$game['title']] = $game['title'] . ': ' . $game['start_time'] . ' - ' . $game['end_time'];
     }
 
     // If the user is floor, give option to add a player.
