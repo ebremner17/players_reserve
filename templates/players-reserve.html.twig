@@ -30,12 +30,13 @@
       {% endfor %}
 
       {% if games.floor %}
-        <a href="reserve/add/{{ games.date }}">
+        <a href="/reserve/add/{{ games.date }}">
           <button class="players-button players-button--blue">Add player to the reserve</button>
         </a>
       {% else %}
         {% if games.status %}
-          <a href="reserve/add/{{ games.date }}">
+          {{ app.request.baseUrl }}
+          <a href="/reserve/add/{{ games.date }}">
             <button class="players-button players-button--blue">Add your name to the reserve</button>
           </a>
         {% endif %}
