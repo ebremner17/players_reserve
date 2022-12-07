@@ -208,33 +208,33 @@ class PlayersReserveAddForm extends FormBase {
         '#title' => $this->t('Last Name'),
       ];
 
-      // Option to add a player to the website.
-      $form['player_info']['add'] = [
-        '#type' => 'checkbox',
-        '#title' => $this->t('Add to website'),
-      ];
-
-      // The player email address.
-      $form['player_info']['email'] = [
-        '#type' => 'email',
-        '#title' => $this->t('Email'),
-        '#states' => [
-          'visible' => [
-            ':input[name="add"]' => ['checked' => TRUE],
-          ],
-        ],
-      ];
-
-      // The player phone number.
-      $form['player_info']['phone'] = [
-        '#type' => 'textfield',
-        '#title' => $this->t('Phone'),
-        '#states' => [
-          'visible' => [
-            ':input[name="add"]' => ['checked' => TRUE],
-          ],
-        ],
-      ];
+//      // Option to add a player to the website.
+//      $form['player_info']['add'] = [
+//        '#type' => 'checkbox',
+//        '#title' => $this->t('Add to website'),
+//      ];
+//
+//      // The player email address.
+//      $form['player_info']['email'] = [
+//        '#type' => 'email',
+//        '#title' => $this->t('Email'),
+//        '#states' => [
+//          'visible' => [
+//            ':input[name="add"]' => ['checked' => TRUE],
+//          ],
+//        ],
+//      ];
+//
+//      // The player phone number.
+//      $form['player_info']['phone'] = [
+//        '#type' => 'textfield',
+//        '#title' => $this->t('Phone'),
+//        '#states' => [
+//          'visible' => [
+//            ':input[name="add"]' => ['checked' => TRUE],
+//          ],
+//        ],
+//      ];
     }
 
     // Need to allow for only single selections for players
