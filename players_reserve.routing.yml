@@ -12,6 +12,8 @@ players_reserve.reserve:
     _title: 'Players Inc. Reserve'
   requirements:
     _permission: 'access content'
+  options:
+    no_cache: 'TRUE'
 players_reserve_add.form:
   path: '/reserve/add/{date}'
   defaults:
