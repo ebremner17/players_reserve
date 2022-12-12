@@ -54,6 +54,30 @@
     {% else %}
       There are currently no games scheduled, please check back later.
     {% endif %}
+    {% if games.future_games | length > 0 %}
+      <h2>Cash Games</h2>
+      <div class="players-reserve-tourney">
+        {% for future_games in games.future_games %}
+          <h3>{{ future_games.display_date }}</h3>
+          {% for future_game in future_games.games %}
+            <h4>
+              {% if future_game.reserved_flag %}
+                <span class="players-checkmark"></span>
+              {% else %}
+                <span class="players-x">
+                X
+              </span>
+              {% endif %}
+              {{ future_game.title }}: {{ future_game.start_time }} - {{ future_game.end_time }}
+            </h4>
+          {% endfor %}
+          {{ app.request.baseUrl }}
+          <a href="/reserve/add/{{ future_games.date }}">
+            <button class="players-button players-button--blue">Reserve</button>
+          </a>
+        {% endfor %}
+      </div>
+    {% endif %}
     {% if games.tourneys | length > 0 %}
       <h2>Tournaments</h2>
       <div class="players-reserve-tourney">

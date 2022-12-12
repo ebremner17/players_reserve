@@ -181,6 +181,28 @@ class PlayersReserve extends ControllerBase {
       $games['tourneys'] = [];
     }
 
+    $next_six_dates = [];
+
+    for ($i = 1; $i < 7; $i++) {
+      $next_six_dates[] = date('Y-m-d', strtotime('now +' . $i . ' day'));
+    }
+
+    // Get the next week of games.
+    foreach ($next_six_dates as $next_date) {
+
+      // Try and load the game node.
+      $node = current($this->entityTypeManager->getStorage('node')->loadByProperties(['title' => $next_date]));
+
+      // If there is a game node add it to the future games.
+      if ($node) {
+        $games['future_games'][] = [
+          'display_date' => date('l F j, Y', strtotime($next_date)),
+          'date' => $next_date,
+          'games' => $this->playersService->getGames($node, TRUE),
+        ];
+      }
+    }
+
     // Set the render array.
     return [
       '#theme' => 'players_reserve',

@@ -8,10 +8,12 @@ namespace Drupal\players_reserve\Form;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
 use Drupal\players_reserve\Service\PlayersService;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Database\Connection;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class PlayersReserveAddForm extends FormBase {
 
@@ -123,15 +125,26 @@ class PlayersReserveAddForm extends FormBase {
     // Get the games.
     $games['games'] = $this->playersService->getGames($node);
 
-    if (
-      !$this->playersService->isFloor() &&
-      $date !== $this->playersService->getCorrectDate()
-    ) {
-      foreach ($games['games'] as $index => $game) {
-        if (!str_contains($game['title'], 'Tournament')) {
-          unset($games['games'][$index]);
-        }
+    if (!$this->playersService->isFloor()) {
+      $future_date = date('Y-m-d', strtotime('now + 1week'));
+      if ($date > $future_date) {
+        foreach ($games['games'] as $index => $game) {
+          if (!str_contains($game['title'], 'Tournament')) {
+            unset($games['games'][$index]);
+          }
+          }
       }
+    }
+
+    // If there are no games, meaning that we are on the wrong
+    // date for a regular users, then return to the reserve page.
+    // This can only happen when a user manually change the link
+    // in the browser.
+    if (empty($games['games'])) {
+      $url = Url::fromUri('internal:/reserve')->toString();
+      $response = new RedirectResponse($url);
+      $response->send();
+      return;
     }
 
     $form['#prefix'] = '<div class="players-contained-width">';
@@ -207,17 +220,6 @@ class PlayersReserveAddForm extends FormBase {
     // Array to store the default values for the games.
     $default_values = [];
 
-    // Step through each of the games and add the
-    // game title if the flag is set.
-    foreach ($games['games'] as $game) {
-
-      // If the flag for the user as being reserved is
-      // set then add to the default values.
-      if ($game['reserved_flag']) {
-        $default_values[] = $game['title'];
-      }
-    }
-
     // Need to allow for only single selections for players
     // on Fridays.
     if (
@@ -226,16 +228,38 @@ class PlayersReserveAddForm extends FormBase {
       !$this->playersService->isFloor()
     ) {
 
+      // Step through each of the games and add the
+      // game title if the flag is set.
+      foreach ($games['games'] as $game) {
+
+        // If the flag for the user as being reserved is
+        // set then add to the default values.
+        if ($game['reserved_flag']) {
+          $default_values = $game['title'];
+        }
+      }
+
       // The games element for Friday nights.
       $form['games'] = [
         '#type' => 'radios',
         '#options' => $options,
         '#title' => $this->t('Game types'),
-        '#required' => TRUE,
+        '#required' => $this->playersService->isFloor() ? TRUE : FALSE,
         '#default_value' => $default_values,
       ];
     }
     else {
+
+      // Step through each of the games and add the
+      // game title if the flag is set.
+      foreach ($games['games'] as $game) {
+
+        // If the flag for the user as being reserved is
+        // set then add to the default values.
+        if ($game['reserved_flag']) {
+          $default_values[] = $game['title'];
+        }
+      }
 
       // The games element for everything other than
       // Friday nights.
@@ -243,7 +267,7 @@ class PlayersReserveAddForm extends FormBase {
         '#type' => 'checkboxes',
         '#options' => $options,
         '#title' => $this->t('Game types'),
-        '#required' => TRUE,
+        '#required' => $this->playersService->isFloor() ? TRUE : FALSE,
         '#default_value' => $default_values,
       ];
     }
@@ -368,7 +392,7 @@ class PlayersReserveAddForm extends FormBase {
       $this->messenger->addStatus('This player has been added to the reserve.');
     }
     else {
-      $this->messenger->addStatus('You have been added to the reserve.');
+      $this->messenger->addStatus('Your reserve has been added/updated.');
     }
 
     $form_state->setRedirect('players_reserve.reserve');

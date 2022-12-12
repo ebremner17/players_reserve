@@ -150,7 +150,21 @@ class PlayersService  {
     return $query->execute()->fetchAssoc();
   }
 
-  public function getGames($node) {
+  /**
+   * Function to get the games for a specific node.
+   *
+   * @param $node
+   *   The node.
+   * @param bool $remove_tourney_flag
+   *   Flag to remove tournaments.
+   *
+   * @return array
+   *   Array of games.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   */
+  public function getGames($node, $remove_tourney_flag = FALSE) {
 
     if (!$node) {
       return [];
@@ -197,6 +211,16 @@ class PlayersService  {
           $list = $this->getList($node->id(), $game_type);
         }
         else if ($this->account->isAuthenticated()) {
+
+          // If the remove tourneys flag is set,
+          // then skip over this game.
+          if (
+            $remove_tourney_flag &&
+            str_contains($game_type, 'Tournament')
+          ) {
+            continue;
+          }
+
           $query = $this->database->select('players_reserve', 'pr')
             ->fields('pr', ['reserve_id'])
             ->condition('pr.nid', $node->id())
@@ -209,7 +233,6 @@ class PlayersService  {
             $reserved_flag = TRUE;
           }
         }
-
 
         // Add the game to the games array.
         $games[] = [
