@@ -121,35 +121,35 @@ class PlayersReserve extends ControllerBase {
       // logged in and registered.
       if ($this->account->isAuthenticated()) {
 
-        // Get if user is reserved.
-        $reserve = $this->playersService->checkUserReserved($user->id(), $node->id());
+//        // Get if user is reserved.
+//        $games['reserve'] = $this->playersService->checkUserReserved($user->id(), $node->id());
 
-        // If they are not reserved, set flag to show button.
-        // If they are reserved, set the message that
-        // they are already reserved.
-        if (!$reserve) {
-          $games['status'] = TRUE;
-        }
-        else {
-
-          // Get the current status messages.
-          $messages = $this->messenger->messagesByType('status');
-
-          // If there is no messages or there is no message
-          // about already been added, add the message about
-          // they have already reserved.
-          if (
-            $messages == NULL ||
-            (
-              isset($messages[0]) &&
-              $messages[0] !== 'You have been added to the reserve.'
-            )
-          ) {
-
-            // Add the message about already being reserved.
-            $this->messenger()->addStatus('You have already reserved for todays game.');
-          }
-        }
+//        // If they are not reserved, set flag to show button.
+//        // If they are reserved, set the message that
+//        // they are already reserved.
+//        if (!$reserve) {
+//          $games['status'] = TRUE;
+//        }
+//        else {
+//
+//          // Get the current status messages.
+//          $messages = $this->messenger->messagesByType('status');
+//
+//          // If there is no messages or there is no message
+//          // about already been added, add the message about
+//          // they have already reserved.
+//          if (
+//            $messages == NULL ||
+//            (
+//              isset($messages[0]) &&
+//              $messages[0] !== 'You have been added to the reserve.'
+//            )
+//          ) {
+//
+//            // Add the message about already being reserved.
+//            $this->messenger()->addStatus('You have already reserved for todays game.');
+//          }
+//        }
       }
       else {
 
@@ -164,6 +164,22 @@ class PlayersReserve extends ControllerBase {
     // Set the display date and actual date in the games array.
     $games['display_date'] = date('l F j, Y', strtotime($date));
     $games['date'] = $date;
+
+    // The roles not get tournaments for.
+    $roles = [
+      'administrator',
+      'owner',
+      'floor',
+    ];
+
+    // If the user is just a user, get the tournaments.
+    // If not return NULL array so the site doesn't complain.
+    if(empty(array_intersect($this->account->getRoles(), $roles))) {
+      $games['tourneys'] = $this->playersService->getTournaments();
+    }
+    else {
+      $games['tourneys'] = [];
+    }
 
     // Set the render array.
     return [

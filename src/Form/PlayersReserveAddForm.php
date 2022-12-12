@@ -110,23 +110,7 @@ class PlayersReserveAddForm extends FormBase {
       // registered for the games.
       $games['status'] = FALSE;
 
-      // If they are logged in, check if reserved.
-      // If they are not, set the message about being
-      // logged in and registered.
-      if ($user->isAuthenticated()) {
-
-        // Get if user is reserved.
-        $reserve = $this->playersService->checkUserReserved($user->id(), $node->id());
-
-        // If they are not reserved, set flag to show button.
-        // If they are reserved, set the message that
-        // they are already reserved.
-        if ($reserve) {
-          $this->messenger()->addStatus('You have already reserved for todays game.');
-          return [];
-        }
-      }
-      else {
+      if (!$user->isAuthenticated()) {
         $this->messenger()->addError('You must be logged in or registered with Players Inc to reserve a game.');
         return [];
       }
@@ -138,6 +122,17 @@ class PlayersReserveAddForm extends FormBase {
 
     // Get the games.
     $games['games'] = $this->playersService->getGames($node);
+
+    if (
+      !$this->playersService->isFloor() &&
+      $date !== $this->playersService->getCorrectDate()
+    ) {
+      foreach ($games['games'] as $index => $game) {
+        if (!str_contains($game['title'], 'Tournament')) {
+          unset($games['games'][$index]);
+        }
+      }
+    }
 
     $form['#prefix'] = '<div class="players-contained-width">';
     $form['#suffix'] = '</div>';
@@ -207,34 +202,20 @@ class PlayersReserveAddForm extends FormBase {
         '#type' => 'textfield',
         '#title' => $this->t('Last Name'),
       ];
+    }
 
-//      // Option to add a player to the website.
-//      $form['player_info']['add'] = [
-//        '#type' => 'checkbox',
-//        '#title' => $this->t('Add to website'),
-//      ];
-//
-//      // The player email address.
-//      $form['player_info']['email'] = [
-//        '#type' => 'email',
-//        '#title' => $this->t('Email'),
-//        '#states' => [
-//          'visible' => [
-//            ':input[name="add"]' => ['checked' => TRUE],
-//          ],
-//        ],
-//      ];
-//
-//      // The player phone number.
-//      $form['player_info']['phone'] = [
-//        '#type' => 'textfield',
-//        '#title' => $this->t('Phone'),
-//        '#states' => [
-//          'visible' => [
-//            ':input[name="add"]' => ['checked' => TRUE],
-//          ],
-//        ],
-//      ];
+    // Array to store the default values for the games.
+    $default_values = [];
+
+    // Step through each of the games and add the
+    // game title if the flag is set.
+    foreach ($games['games'] as $game) {
+
+      // If the flag for the user as being reserved is
+      // set then add to the default values.
+      if ($game['reserved_flag']) {
+        $default_values[] = $game['title'];
+      }
     }
 
     // Need to allow for only single selections for players
@@ -244,21 +225,26 @@ class PlayersReserveAddForm extends FormBase {
       date("l", strtotime($date)) == "Friday" &&
       !$this->playersService->isFloor()
     ) {
-      // Fieldset for the list of games.
+
+      // The games element for Friday nights.
       $form['games'] = [
         '#type' => 'radios',
         '#options' => $options,
         '#title' => $this->t('Game types'),
         '#required' => TRUE,
+        '#default_value' => $default_values,
       ];
     }
     else {
-      // Fieldset for the list of games.
+
+      // The games element for everything other than
+      // Friday nights.
       $form['games'] = [
         '#type' => 'checkboxes',
         '#options' => $options,
         '#title' => $this->t('Game types'),
         '#required' => TRUE,
+        '#default_value' => $default_values,
       ];
     }
 
@@ -327,6 +313,12 @@ class PlayersReserveAddForm extends FormBase {
       $uid = $user->id();
       $first_name = $user->field_user_first_name->value;
       $last_name = $user->field_user_last_name->value;
+
+      // Clear the user entries in the reserve.
+      $delete = $this->database->delete('players_reserve')
+        ->condition('nid', $values['nid'])
+        ->condition('uid', $user->id())
+        ->execute();
     }
 
     // Need to check if we are using multiple selections or not.

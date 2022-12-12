@@ -191,10 +191,25 @@ class PlayersService  {
         }
 
         $list = '';
+        $reserved_flag = FALSE;
 
         if($this->isFloor()) {
           $list = $this->getList($node->id(), $game_type);
         }
+        else if ($this->account->isAuthenticated()) {
+          $query = $this->database->select('players_reserve', 'pr')
+            ->fields('pr', ['reserve_id'])
+            ->condition('pr.nid', $node->id())
+            ->condition('pr.uid', $this->account->id())
+            ->condition('pr.game_type', $game_type);
+
+          $result = $query->execute()->fetchAssoc();
+
+          if ($result) {
+            $reserved_flag = TRUE;
+          }
+        }
+
 
         // Add the game to the games array.
         $games[] = [
@@ -203,6 +218,7 @@ class PlayersService  {
           'end_time' => $paragraph->field_end_time->value . ' ' . $paragraph->field_end_time_am_pm->value,
           'notes' => $notes,
           'list' => $list,
+          'reserved_flag' => $reserved_flag,
         ];
       }
     }
@@ -257,6 +273,67 @@ class PlayersService  {
     }
 
     return FALSE;
+  }
+
+  /**
+   * Function to get the list of players.
+   *
+   * @return array
+   *   An array of tournaments.
+   */
+  public function getTournaments(): array {
+
+    // Ensure that we have something to return.
+    $tourneys = [];
+
+    // Get the query object.
+    $query = $this->entityTypeManager->getStorage('node')->getQuery();
+
+    // Get the nids that are greater than today.
+    $nids = $query->condition('title', date('Y-m-d', strtotime('now')), '>')
+      ->condition('status', '1')
+      ->condition('type', 'pi_ct_games')
+      ->execute();
+
+    // Load all the nodes based on the nids.
+    $nodes = $this->entityTypeManager->getStorage('node')->loadMultiple($nids);
+
+    // Step through each of the nodes and check if it
+    // has a tournament.
+    foreach ($nodes as $node) {
+
+      // Get the games for that node.
+      $games = $this->getGames($node);
+
+      // Step through all the games and check if it
+      // has a tournament.
+      foreach ($games as $game) {
+
+        // If the node has a tournament then add to array.
+        if (str_contains($game['title'], 'Tournament')) {
+
+          $query = $this->database->select('players_reserve', 'pr')
+            ->fields('pr', ['reserve_id'])
+            ->condition('pr.nid', $node->id())
+            ->condition('pr.uid', $this->account->id())
+            ->condition('pr.game_type', $game['title']);
+
+          $result = $query->execute()->fetchAssoc();
+
+          // Add the tournament to the array.
+          $tourneys[] = [
+            'display_date' => date('l F j, Y', strtotime($node->label())),
+            'date' => $node->label(),
+            'title' => $game['title'],
+            'start_time' => $game['start_time'],
+            'end_time' => $game['end_time'],
+            'reserved_flag' => $result ? TRUE : FALSE,
+          ];
+        }
+      }
+    }
+
+    return $tourneys;
   }
 
 }

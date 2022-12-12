@@ -7,11 +7,23 @@
       </div>
     </details>
   {% endif %}
-  <h2>{{ games.display_date }}</h2>
   <div class="players-reserve">
+    <h2>Today's Games</h2>
+    <h3>{{ games.display_date }}</h3>
     {% if games.games %}
       {% for game in games.games %}
-        <h3>{{ game.title }}: {{ game.start_time }} - {{ game.end_time }}</h3>
+        <h4>
+          {% if not games.floor %}
+            {% if game.reserved_flag %}
+              <span class="players-checkmark"></span>
+            {% else %}
+              <span class="players-x">
+                X
+              </span>
+            {% endif %}
+          {% endif %}
+          {{ game.title }}: {{ game.start_time }} - {{ game.end_time }}
+        </h4>
         {% if game.notes %}
           {{ game.notes }}
         {% endif %}
@@ -34,15 +46,35 @@
           <button class="players-button players-button--blue">Add player to the reserve</button>
         </a>
       {% else %}
-        {% if games.status %}
-          {{ app.request.baseUrl }}
-          <a href="/reserve/add/{{ games.date }}">
-            <button class="players-button players-button--blue">Add your name to the reserve</button>
-          </a>
-        {% endif %}
+        {{ app.request.baseUrl }}
+        <a href="/reserve/add/{{ games.date }}">
+          <button class="players-button players-button--blue">Reserve</button>
+        </a>
       {% endif %}
     {% else %}
       There are currently no games scheduled, please check back later.
+    {% endif %}
+    {% if games.tourneys | length > 0 %}
+      <h2>Tournaments</h2>
+      <div class="players-reserve-tourney">
+        {% for tourney in games.tourneys %}
+          <h3>{{ tourney.display_date }}</h3>
+          <h4>
+            {% if tourney.reserved_flag %}
+              <span class="players-checkmark"></span>
+            {% else %}
+              <span class="players-x">
+              X
+            </span>
+            {% endif %}
+            {{ tourney.title }}: {{ tourney.start_time }} - {{ tourney.end_time }}
+          </h4>
+          {{ app.request.baseUrl }}
+          <a href="/reserve/add/{{ tourney.date }}">
+            <button class="players-button players-button--blue">Reserve</button>
+          </a>
+        {% endfor %}
+      </div>
     {% endif %}
   </div>
 </div>
