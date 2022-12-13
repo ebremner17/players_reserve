@@ -56,7 +56,7 @@
     {% else %}
       There are currently no games scheduled, please check back later.
     {% endif %}
-    {% if games.future_games | length > 0 %}
+    {% if not games.floor and games.future_games | length > 0 %}
       <h2>Cash Games</h2>
       <div class="players-reserve-tourney">
         {% for future_games in games.future_games %}
