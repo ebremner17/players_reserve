@@ -13,7 +13,7 @@
     {% if games.games %}
       {% for game in games.games %}
         <h4>
-          {% if not games.floor %}
+          {% if not games.floor and games.is_logged_in %}
             {% if game.reserved_flag %}
               <span class="players-checkmark"></span>
             {% else %}
@@ -41,15 +41,17 @@
         {% endif %}
       {% endfor %}
 
-      {% if games.floor %}
-        <a href="/reserve/add/{{ games.date }}">
-          <button class="players-button players-button--blue">Add player to the reserve</button>
-        </a>
-      {% else %}
-        {{ app.request.baseUrl }}
-        <a href="/reserve/add/{{ games.date }}">
-          <button class="players-button players-button--blue">Reserve</button>
-        </a>
+      {% if games.is_logged_in %}
+        {% if games.floor %}
+          <a href="/reserve/add/{{ games.date }}">
+            <button class="players-button players-button--blue">Add player to the reserve</button>
+          </a>
+        {% else %}
+          {{ app.request.baseUrl }}
+          <a href="/reserve/add/{{ games.date }}">
+            <button class="players-button players-button--blue">Reserve</button>
+          </a>
+        {% endif %}
       {% endif %}
     {% else %}
       There are currently no games scheduled, please check back later.
@@ -61,20 +63,24 @@
           <h3>{{ future_games.display_date }}</h3>
           {% for future_game in future_games.games %}
             <h4>
-              {% if future_game.reserved_flag %}
-                <span class="players-checkmark"></span>
-              {% else %}
-                <span class="players-x">
-                X
-              </span>
+              {% if games.is_logged_in %}
+                {% if future_game.reserved_flag %}
+                  <span class="players-checkmark"></span>
+                {% else %}
+                  <span class="players-x">
+                  X
+                </span>
+                {% endif %}
               {% endif %}
               {{ future_game.title }}: {{ future_game.start_time }} - {{ future_game.end_time }}
             </h4>
           {% endfor %}
-          {{ app.request.baseUrl }}
-          <a href="/reserve/add/{{ future_games.date }}">
-            <button class="players-button players-button--blue">Reserve</button>
-          </a>
+          {% if games.is_logged_in %}
+            {{ app.request.baseUrl }}
+            <a href="/reserve/add/{{ future_games.date }}">
+              <button class="players-button players-button--blue">Reserve</button>
+            </a>
+          {% endif %}
         {% endfor %}
       </div>
     {% endif %}
@@ -84,19 +90,23 @@
         {% for tourney in games.tourneys %}
           <h3>{{ tourney.display_date }}</h3>
           <h4>
-            {% if tourney.reserved_flag %}
-              <span class="players-checkmark"></span>
-            {% else %}
-              <span class="players-x">
-              X
-            </span>
+            {% if games.is_logged_in %}
+              {% if tourney.reserved_flag %}
+                <span class="players-checkmark"></span>
+              {% else %}
+                <span class="players-x">
+                X
+              </span>
+              {% endif %}
             {% endif %}
             {{ tourney.title }}: {{ tourney.start_time }} - {{ tourney.end_time }}
           </h4>
-          {{ app.request.baseUrl }}
-          <a href="/reserve/add/{{ tourney.date }}">
-            <button class="players-button players-button--blue">Reserve</button>
-          </a>
+          {% if games.is_logged_in %}
+            {{ app.request.baseUrl }}
+            <a href="/reserve/add/{{ tourney.date }}">
+              <button class="players-button players-button--blue">Reserve</button>
+            </a>
+          {% endif %}
         {% endfor %}
       </div>
     {% endif %}

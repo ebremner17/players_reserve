@@ -203,6 +203,9 @@ class PlayersReserve extends ControllerBase {
       }
     }
 
+    // Adding if logged in flag.
+    $games['is_logged_in'] = $this->account->isAuthenticated();
+
     // Set the render array.
     return [
       '#theme' => 'players_reserve',
