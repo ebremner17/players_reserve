@@ -191,6 +191,15 @@ class PlayersService  {
         // Get the game type field.
         $game_type = $paragraph->field_game_type->value;
 
+        // If this has a remove tourney flag and it is a
+        // tourney just skip it.
+        if (
+          $remove_tourney_flag &&
+          str_contains($game_type, 'Tournament')
+        ) {
+          continue;
+        }
+
         // Get the notes of the game.
         $notes = $paragraph->field_game_notes->getValue();
 
@@ -207,19 +216,11 @@ class PlayersService  {
         $list = '';
         $reserved_flag = FALSE;
 
-        if($this->isFloor()) {
+        // If user is floor get the list.
+        if ($this->isFloor()) {
           $list = $this->getList($node->id(), $game_type);
         }
         else if ($this->account->isAuthenticated()) {
-
-          // If the remove tourneys flag is set,
-          // then skip over this game.
-          if (
-            $remove_tourney_flag &&
-            str_contains($game_type, 'Tournament')
-          ) {
-            continue;
-          }
 
           $query = $this->database->select('players_reserve', 'pr')
             ->fields('pr', ['reserve_id'])
