@@ -54,9 +54,12 @@ class EntityAutocompleteMatcher extends \Drupal\Core\Entity\EntityAutocompleteMa
       ->fields('fn', ['field_user_first_name_value'])
       ->fields('ln', ['field_user_last_name_value'])
       ->fields('ufd', ['mail']);
-    $query->orConditionGroup()
-      ->condition('fn.field_user_first_name_value', 'LIKE', '%' . $string . '%')
-      ->condition('ln.field_user_last_name_value', 'LIKE', '%' . $string . '%');
+
+    $orGroup = $query->orConditionGroup()
+      ->condition('fn.field_user_first_name_value', '%' . $string . '%', 'LIKE')
+      ->condition('ln.field_user_last_name_value', '%' . $string . '%', 'LIKE');
+
+    $query->condition($orGroup);
 
     $users = $query->execute()->fetchAll();
 
