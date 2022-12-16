@@ -21,3 +21,17 @@ players_reserve_add.form:
     _title: 'Players Inc. Reserve'
   requirements:
     _permission: 'access content'
+players_reserve.reports:
+  path: '/admin/reserve/reports'
+  defaults:
+    _form: '\Drupal\players_reserve\Form\PlayersSelectReportForm'
+    _title: 'Players Inc. Select Report'
+  requirements:
+    _role: 'administrator'
+players_reserve.report:
+  path: '/admin/reserve/report'
+  defaults:
+    _controller: '\Drupal\players_reserve\Controller\PlayersReport::report'
+    _title: 'Players Inc. Report'
+  requirements:
+    _role: 'administrator'
