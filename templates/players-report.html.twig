@@ -1,0 +1,27 @@
+<div class="players-report players-contained-width">
+  <div class="players-report__links">
+    {{ app.request.baseUrl }}
+    <a href="/admin/reserve/reports">
+      <button class="players-button players-button--blue">Back to Reports</button>
+    </a>
+  </div>
+  <div class="players-report__title">
+    <h3>{{ report_info.title }}</h3>
+    <h4>{{ report_info.sub_title }}</h4>
+  </div>
+  {% if report_info.reservations %}
+    {% for reservation in report_info.reservations %}
+      <details class="players-floor-date"{% if reservation.open %} open="open"{% endif %}>
+        <summary>{{ reservation.date }}</summary>
+        <div class="players-content">
+          {% if reservation.count %}
+            <div class="players-report__header">
+              There were {{ reservation.count }} reservations for this game.
+            </div>
+          {% endif %}
+          {{ reservation.table }}
+        </div>
+      </details>
+    {% endfor %}
+  {% endif %}
+</div>
