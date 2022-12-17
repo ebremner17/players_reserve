@@ -241,7 +241,7 @@ class PlayersReserveFloorAddForm extends FormBase {
         $player_name = $player_info->first_name . ' ' . $player_info->last_name;
 
         // Add the message.
-        $this->messenger->addStatus($this->t('@player_name has been marked as @status', ['@player_name' => $player_name, '@status' => $status]));
+        $this->messenger->addStatus($this->t('The player(s) has been marked as @status', ['@status' => $status]));
 
         // Increment the counter.
         $count++;
