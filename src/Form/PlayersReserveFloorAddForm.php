@@ -146,7 +146,7 @@ class PlayersReserveFloorAddForm extends FormBase {
         // Player last name.
         $form['list'][$count]['reserve_time'] = [
           '#type' => 'markup',
-          '#markup' => date('g:h a', strtotime($player->reserve_time)),
+          '#markup' => date('g:i a (M d)', strtotime($player->reserve_time)),
         ];
 
         // The fieldset for the options.

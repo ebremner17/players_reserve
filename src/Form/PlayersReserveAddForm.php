@@ -299,7 +299,7 @@ class PlayersReserveAddForm extends FormBase {
 
     // Get the nid and the reserve time.
     $nid = $values['nid'];
-    $reserve_time = date('Y-m-d H:I:s');
+    $reserve_time = date('Y-m-d H:i:s');
 
     // If the user is a floor then get the info from the
     // values entered.
