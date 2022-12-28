@@ -330,7 +330,7 @@ class PlayersReserveAddForm extends FormBase {
       $uid = $values['player_is_user'] == 'yes' ? $values['uid'] : NULL;
 
       // Player is seated flag.
-      $player_is_seated = $values['seated'];
+      $player_is_seated = $values['seated'] ?? 0;
 
       // If the player is a user get their name from user object.
       // If not get name from values entered.
