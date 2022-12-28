@@ -192,17 +192,6 @@ class PlayersReserveAddForm extends FormBase {
         '#target_type' => 'user',
       ];
 
-      // The player is seated for element.
-      $form['player_uid']['seated'] = [
-        '#type' => 'checkbox',
-        '#title' => $this->t('Player is seated'),
-        '#states' => [
-          'invisible' => [
-            ':input[name="uid"]' => ['value' => ''],
-          ],
-        ],
-      ];
-
       // Fieldset for the player info, if they are not
       // a registered user.
       $form['player_info'] = [
@@ -225,6 +214,26 @@ class PlayersReserveAddForm extends FormBase {
       $form['player_info']['last_name'] = [
         '#type' => 'textfield',
         '#title' => $this->t('Last Name'),
+      ];
+
+      $form['player_seated'] = [
+        '#type' => 'fieldset',
+        '#title' => $this->t('Seated'),
+        '#states' => [
+          'invisible' => [
+            ':input[name="uid"]' => ['value' => ''],
+            'or',
+            ':input[name="first_name"]' => ['value' => ''],
+            'or',
+            ':input[name="last_name"]' => ['value' => ''],
+          ],
+        ],
+      ];
+
+      // The player is seated for element.
+      $form['player_seated']['seated'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Player is seated'),
       ];
     }
 
