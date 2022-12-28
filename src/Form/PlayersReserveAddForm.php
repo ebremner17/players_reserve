@@ -321,6 +321,9 @@ class PlayersReserveAddForm extends FormBase {
     $nid = $values['nid'];
     $reserve_time = date('Y-m-d H:i:s');
 
+    // Player is seated flag.
+    $player_is_seated = $values['seated'] ?? 0;
+
     // If the user is a floor then get the info from the
     // values entered.
     // If user is not floor then get values from user object.
@@ -328,9 +331,6 @@ class PlayersReserveAddForm extends FormBase {
 
       // Get if the player is already a user.
       $uid = $values['player_is_user'] == 'yes' ? $values['uid'] : NULL;
-
-      // Player is seated flag.
-      $player_is_seated = $values['seated'] ?? 0;
 
       // If the player is a user get their name from user object.
       // If not get name from values entered.
