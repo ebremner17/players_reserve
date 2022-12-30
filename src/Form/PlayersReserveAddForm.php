@@ -240,11 +240,18 @@ class PlayersReserveAddForm extends FormBase {
     // Array to store the default values for the games.
     $default_values = [];
 
+    // The Friday dates that are exempt from the radio
+    // buttons, doenst happen often.
+    $friday_exempt_dates = [
+      '2022-12-30',
+    ];
+
     // Need to allow for only single selections for players
     // on Fridays.
     if (
       count($options) > 1 &&
       date("l", strtotime($date)) == "Friday" &&
+      !in_array(date("Y-m-d", strtotime($date)), $friday_exempt_dates) &&
       !$this->playersService->isFloor()
     ) {
 
