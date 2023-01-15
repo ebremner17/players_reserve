@@ -275,6 +275,8 @@ class PlayersReport extends ControllerBase {
     $header = [
       ['data' => t('Last Name'), 'field' => 'last_name', 'sort' => 'asc'],
       ['data' => $this->t('First Name'), 'field' => 'first_name', 'sort' => 'asc'],
+      ['data' => $this->t('Phone'), 'field' => 'phone'],
+      ['data' => $this->t('Email'), 'field' => 'email'],
       ['data' => $this->t('Game'), 'field' => 'game', 'sort' => 'asc'],
       ['data' => t('Status')],
     ];
@@ -315,6 +317,8 @@ class PlayersReport extends ControllerBase {
         'data' => [
           'first_name' => $result->last_name,
           'last_name' => $result->first_name,
+          'phone' => $result->phone,
+          'email' => $result->email,
           'game' => $result->game_type,
           'status' => $status,
         ],
@@ -350,7 +354,7 @@ class PlayersReport extends ControllerBase {
 
     // The query to get the reservations for the game.
     $query = $this->database->select('players_reserve', 'pr')
-      ->fields('pr', ['reserve_id', 'first_name', 'last_name', 'game_type', 'seated', 'removed'])
+      ->fields('pr', ['reserve_id', 'uid', 'first_name', 'last_name', 'game_type', 'seated', 'removed'])
       ->condition('pr.nid', $nid);
 
     // If the status parameters is seated, add the condition.
@@ -384,8 +388,21 @@ class PlayersReport extends ControllerBase {
       $query->orderBy('last_name', 'asc');
     }
 
+    $results = $query->execute()->fetchAll();
+
+    foreach ($results as $index => $result) {
+      if ($result->uid) {
+        $user = $this->entityTypeManager->getStorage('user')->load($result->uid);
+        $results[$index]->phone = $user->field_user_phone->value;
+        $results[$index]->email = $user->mail->value;
+      }
+      else {
+        $results[$index]->phone = '';
+        $results[$index]->email = '';
+      }
+    }
     // Return the results.
-    return $query->execute()->fetchAll();
+    return $results;
   }
 
 }
