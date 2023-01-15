@@ -297,6 +297,51 @@ class PlayersReserveAddForm extends FormBase {
         '#required' => $this->playersService->isFloor() ? TRUE : FALSE,
         '#default_value' => $default_values,
       ];
+
+      $current_time = strtotime('now');
+
+      $show_freeroll = FALSE;
+
+      $count = 0;
+      // Get the invisible states.
+      foreach ($games['games'] as $game) {
+        $freeroll_time = strtotime($date . ' ' . $game['start_time'] . ' -1 hour');
+        if ($current_time < $freeroll_time) {
+          $show_freeroll = TRUE;
+          $invisible[':input[name="games[' . $game['title'] . ']"]'] = ['checked' => FALSE];
+          $freerolls['freeroll' . $count] = [
+            '#type' => 'select',
+            '#title' => 'Attend ' . $game['title'] . ' freeroll for ' . $game['start_time'],
+            '#options' => [
+              '' => '-- Select --',
+              $game['title'] => 'Yes',
+              0 => 'No',
+            ],
+            '#states' => [
+              'visible' => [
+                ':input[name="games[' . $game['title'] . ']"]' => ['checked' => TRUE],
+              ],
+              'required' => [
+                ':input[name="games[' . $game['title'] . ']"]' => ['checked' => TRUE],
+              ],
+            ],
+          ];
+          $count++;
+        }
+      }
+
+      if ($show_freeroll) {
+
+        $form['freerolls'] = [
+          '#type' => 'fieldset',
+          '#title' => $this->t('Freeroll attendance'),
+          '#states' => ['invisible' => $invisible],
+        ];
+
+        foreach ($freerolls as $index => $freeroll) {
+          $form['freerolls']['freeroll'][$index] = $freeroll;
+        }
+      }
     }
 
     // Hidden value for the nid.
@@ -375,6 +420,14 @@ class PlayersReserveAddForm extends FormBase {
         ->execute();
     }
 
+    $freeroll = [];
+
+    foreach ($values as $index => $value) {
+      if (str_contains($index, 'freeroll') && $value !== '0') {
+        $freeroll[] = $value;
+      }
+    }
+
     // Need to check if we are using multiple selections or not.
     if (is_array($values['games'])) {
 
@@ -395,6 +448,7 @@ class PlayersReserveAddForm extends FormBase {
               'game_type' => $game_type,
               'reserve_time' => $reserve_time,
               'seated' => $player_is_seated,
+              'attend_freeroll' => in_array($game_type, $freeroll) ? 1 : 0,
             ])
             ->execute();
         }
@@ -415,6 +469,7 @@ class PlayersReserveAddForm extends FormBase {
             'game_type' => $values['games'],
             'reserve_time' => $reserve_time,
             'seated' => $player_is_seated,
+            'attend_freeroll' => in_array($values['games'], $freeroll) ? 1 : 0,
           ])
           ->execute();
       }
