@@ -317,6 +317,7 @@ class PlayersService  {
     $nids = $query->condition('title', date('Y-m-d', strtotime('now')), '>')
       ->condition('status', '1')
       ->condition('type', 'pi_ct_games')
+      ->sort('title')
       ->execute();
 
     // Load all the nodes based on the nids.
@@ -345,7 +346,7 @@ class PlayersService  {
           $result = $query->execute()->fetchAssoc();
 
           // The tourney info.
-          $tourney = [
+          $tourneys[] = [
             'display_date' => date('l F j, Y', strtotime($node->label())),
             'date' => $node->label(),
             'title' => $game['title'],
@@ -353,18 +354,6 @@ class PlayersService  {
             'end_time' => $game['end_time'],
             'reserved_flag' => $result ? TRUE : FALSE,
           ];
-
-          // Put the tourneys in the correct order.
-          if (
-            count($tourneys) > 0 &&
-            $node->label() < $tourneys[count($tourneys) - 1]['date']
-          ) {
-            array_splice($tourneys, count($tourneys) - 1, 0, $tourney);
-          }
-          else {
-
-            $tourneys[] = $tourney;
-          }
         }
       }
     }
