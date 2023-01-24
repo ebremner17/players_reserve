@@ -344,8 +344,8 @@ class PlayersService  {
 
           $result = $query->execute()->fetchAssoc();
 
-          // Add the tournament to the array.
-          $tourneys[] = [
+          // The tourney info.
+          $tourney = [
             'display_date' => date('l F j, Y', strtotime($node->label())),
             'date' => $node->label(),
             'title' => $game['title'],
@@ -353,6 +353,18 @@ class PlayersService  {
             'end_time' => $game['end_time'],
             'reserved_flag' => $result ? TRUE : FALSE,
           ];
+
+          // Put the tourneys in the correct order.
+          if (
+            count($tourneys) > 0 &&
+            $node->label() < $tourneys[count($tourneys) - 1]['date']
+          ) {
+            array_splice($tourneys, count($tourneys) - 1, 0, $tourney);
+          }
+          else {
+
+            $tourneys[] = $tourney;
+          }
         }
       }
     }
