@@ -326,46 +326,44 @@ class PlayersService  {
     // has a tournament.
     foreach ($nodes as $node) {
 
-      if ($node->label() > date('Y-m-d', strtotime('now'))) {
+      // Get the games for that node.
+      $games = $this->getGames($node);
 
-        // Get the games for that node.
-        $games = $this->getGames($node);
+      // Step through all the games and check if it
+      // has a tournament.
+      foreach ($games as $game) {
 
-        // Step through all the games and check if it
-        // has a tournament.
-        foreach ($games as $game) {
+        // If the node has a tournament then add to array.
+        if (str_contains($game['title'], 'Tournament')) {
 
-          // If the node has a tournament then add to array.
-          if (str_contains($game['title'], 'Tournament')) {
+          $query = $this->database->select('players_reserve', 'pr')
+            ->fields('pr', ['reserve_id'])
+            ->condition('pr.nid', $node->id())
+            ->condition('pr.uid', $this->account->id())
+            ->condition('pr.game_type', $game['title']);
 
-            $query = $this->database->select('players_reserve', 'pr')
-              ->fields('pr', ['reserve_id'])
-              ->condition('pr.nid', $node->id())
-              ->condition('pr.uid', $this->account->id())
-              ->condition('pr.game_type', $game['title']);
+          $result = $query->execute()->fetchAssoc();
 
-            $result = $query->execute()->fetchAssoc();
+          // The tourney info.
+          $tourney = [
+            'display_date' => date('l F j, Y', strtotime($node->label())),
+            'date' => $node->label(),
+            'title' => $game['title'],
+            'start_time' => $game['start_time'],
+            'end_time' => $game['end_time'],
+            'reserved_flag' => $result ? TRUE : FALSE,
+          ];
 
-            // The tourney info.
-            $tourney = [
-              'display_date' => date('l F j, Y', strtotime($node->label())),
-              'date' => $node->label(),
-              'title' => $game['title'],
-              'start_time' => $game['start_time'],
-              'end_time' => $game['end_time'],
-              'reserved_flag' => $result ? TRUE : FALSE,
-            ];
+          // Put the tourneys in the correct order.
+          if (
+            count($tourneys) > 0 &&
+            $node->label() < $tourneys[count($tourneys) - 1]['date']
+          ) {
+            array_splice($tourneys, count($tourneys) - 1, 0, $tourney);
+          }
+          else {
 
-            // Put the tourneys in the correct order.
-            if (
-              count($tourneys) > 0 &&
-              $node->label() < $tourneys[count($tourneys) - 1]['date']
-            ) {
-              array_splice($tourneys, count($tourneys) - 1, 0, $tourney);
-            } else {
-
-              $tourneys[] = $tourney;
-            }
+            $tourneys[] = $tourney;
           }
         }
       }
