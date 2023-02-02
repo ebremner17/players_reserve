@@ -80,6 +80,7 @@ class PlayersSelectReportForm extends FormBase {
         '' => 'Select',
         'single_game_report' => 'Single game report',
         'multiple_game_report' => 'Multiple game report',
+        'players_list' => 'Players list'
       ],
       '#required' => TRUE,
     ];
@@ -89,7 +90,10 @@ class PlayersSelectReportForm extends FormBase {
       '#title' => $this->t('Report details'),
       '#states' => [
         'invisible' => [
-          ':input[name="report_type"]' => ['value' => ''],
+          ':input[name="report_type"]' => [
+            ['value' => ''],
+            ['value' => 'players_list'],
+          ],
         ],
       ],
     ];
@@ -198,13 +202,13 @@ class PlayersSelectReportForm extends FormBase {
     // Get the values from the form state.
     $values = $form_state->getValues();
 
-    // url to redirect
-    $path = '/admin/reserve/report';
-
     // Set the query parameters for the selected report.
     switch ($values['report_type']) {
 
       case 'single_game_report':
+        // url to redirect
+        $path = '/admin/reserve/report';
+
         $path_param = [
           'report_type' => $values['report_type'],
           'date' => $values['game_date'],
@@ -213,12 +217,20 @@ class PlayersSelectReportForm extends FormBase {
         break;
 
       case 'multiple_game_report':
+        // url to redirect
+        $path = '/admin/reserve/report';
+
         $path_param = [
           'report_type' => $values['report_type'],
           'start_date' => $values['game_start_date'],
           'end_date' => $values['game_end_date'],
           'status' => $values['status'],
         ];
+
+      case 'players_list':
+        $path = '/admin/reports/players-list';
+        $path_param = [];
+        break;
     }
 
     // use below if you have to redirect on your known url

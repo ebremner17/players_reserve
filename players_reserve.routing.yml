@@ -35,3 +35,10 @@ players_reserve.report:
     _title: 'Players Inc. Report'
   requirements:
     _role: 'administrator'
+players_reserve.players_list_report:
+  path: '/admin/reports/players-list'
+  defaults:
+    _controller: '\Drupal\players_reserve\Controller\PlayersReport::playersList'
+    _title: 'Players Inc. Report'
+  requirements:
+    _role: 'administrator'

@@ -9,17 +9,17 @@
     <h3>{{ report_info.title }}</h3>
     <h4>{{ report_info.sub_title }}</h4>
   </div>
-  {% if report_info.reservations %}
-    {% for reservation in report_info.reservations %}
-      <details class="players-floor-date"{% if reservation.open %} open="open"{% endif %}>
-        <summary>{{ reservation.date }}</summary>
+  {% if report_info.tables %}
+    {% for table in report_info.tables %}
+      <details class="players-floor-date"{% if table.open %} open="open"{% endif %}>
+        <summary>{{ table.summary }}</summary>
         <div class="players-content">
-          {% if reservation.count %}
+          {% if table.count %}
             <div class="players-report__header">
-              There were {{ reservation.count }} reservations for this game.
+              There were {{ table.count }} entries.
             </div>
           {% endif %}
-          {{ reservation.table }}
+          {{ table.table }}
         </div>
       </details>
     {% endfor %}

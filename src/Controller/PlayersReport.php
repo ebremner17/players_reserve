@@ -122,7 +122,7 @@ class PlayersReport extends ControllerBase {
         $this->checkForParameters($parameters, ['date']);
 
         // Get the report.
-        $report_info['reservations'] = $this->getSingleGameReport($parameters);
+        $report_info['tables'] = $this->getSingleGameReport($parameters);
 
         // Set the title.
         $report_info['title'] = 'Single Game Report';
@@ -135,7 +135,7 @@ class PlayersReport extends ControllerBase {
         $this->checkForParameters($parameters, ['start_date', 'end_date', 'status']);
 
         // Get the report.
-        $report_info['reservations'] = $this->getMultipleGameReport($parameters);
+        $report_info['tables'] = $this->getMultipleGameReport($parameters);
 
         // Set the title.
         $report_info['title'] = 'Multiple Game Report';
@@ -145,6 +145,73 @@ class PlayersReport extends ControllerBase {
 
     // Set the subtitle.
     $report_info['sub_title'] = 'Generated on ' . date('l F j, Y h:i:s A', strtotime('now'));
+
+    // Set the render array.
+    return [
+      '#theme' => 'players_report',
+      '#report_info' => $report_info,
+    ];
+  }
+
+  /**
+   * Returns a page for players list.
+   *
+   * @return array
+   *   A simple renderable array.
+   */
+  public function playersList(): array {
+
+    $query = $this->database->select('users_field_data', 'ufd')
+      ->fields('ln', ['field_user_last_name_value'])
+      ->fields('fn', ['field_user_first_name_value'])
+      ->fields('p', ['field_user_phone_local_number'])
+      ->fields('ufd', ['mail']);
+
+    $query->join('user__field_user_first_name', 'fn', 'fn.entity_id = ufd.uid');
+    $query->join('user__field_user_last_name', 'ln', 'ln.entity_id = ufd.uid');
+    $query->join('user__field_user_phone', 'p', 'p.entity_id = ufd.uid');
+    $query->orderBy('ln.field_user_last_name_value');
+
+    $users = $query->execute()->fetchAll();
+
+    // The header for the table.
+    $header = [
+      ['data' => $this->t('Last Name')],
+      ['data' => $this->t('First Name')],
+      ['data' => $this->t('Phone')],
+      ['data' => $this->t('Email')],
+    ];
+
+    foreach ($users as $user) {
+      // Set the rows.
+      $rows[] = [
+        'data' => [
+          'first_name' => $user->field_user_last_name_value,
+          'last_name' => $user->field_user_first_name_value,
+          'phone' => $user->field_user_phone_local_number,
+          'email' => $user->mail,
+        ],
+      ];
+    }
+
+    // Set the title.
+    $report_info['title'] = 'Players List';
+
+    // Set the subtitle.
+    $report_info['sub_title'] = 'Generated on ' . date('l F j, Y h:i:s A', strtotime('now'));
+
+    $report_info['tables'] = [[
+      'summary' => 'Players List',
+      'open' => TRUE,
+      'table' => [
+        '#type' => 'table',
+        '#title' => 'Players list',
+        '#header' => $header,
+        '#rows' => $rows,
+        '#prefix' => '<div class="players-report">',
+        '#suffix' => '</div>',
+      ],
+    ]];
 
     // Set the render array.
     return [
@@ -286,7 +353,7 @@ class PlayersReport extends ControllerBase {
 
     if (empty($results)) {
       return [
-        'date' => date('l F j, Y', strtotime($date)),
+        'summary' => date('l F j, Y', strtotime($date)),
         'count' => NULL,
         'open' => $open_flag,
         'table' => [
@@ -327,7 +394,7 @@ class PlayersReport extends ControllerBase {
 
     // The table for the list.
     return [
-      'date' => date('l F j, Y', strtotime($date)),
+      'summary' => date('l F j, Y', strtotime($date)),
       'count' => count($results),
       'open' => $open_flag,
       'table' => [
