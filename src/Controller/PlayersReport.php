@@ -201,6 +201,7 @@ class PlayersReport extends ControllerBase {
     $report_info['sub_title'] = 'Generated on ' . date('l F j, Y h:i:s A', strtotime('now'));
 
     $report_info['tables'] = [[
+      'sub_title' => 'There are currently ' . count ($users) . ' players on the list',
       'summary' => 'Players List',
       'open' => TRUE,
       'table' => [

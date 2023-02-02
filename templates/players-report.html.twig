@@ -19,6 +19,11 @@
               There were {{ table.count }} entries.
             </div>
           {% endif %}
+          {% if table.sub_title %}
+            <div class="players-report__header">
+              {{ table.sub_title }}
+            </div>
+          {% endif %}
           {{ table.table }}
         </div>
       </details>
