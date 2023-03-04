@@ -176,6 +176,77 @@ class PlayersReserveFloorAddForm extends FormBase {
         // Increment the counter.
         $count++;
       }
+
+      // Set the current list.
+      $current_list = [];
+
+      // Get the url and date, not it can be reserve.
+      $url = explode('/', \Drupal::request()->getRequestUri());
+      $url_date = end($url);
+
+      // Get the corrected date.
+      $date = $this->playersService->getCorrectDate();
+
+      // If we are on todays date or just /reserve,
+      // get the list of current players.
+      if ($url_date == 'reserve' || $url_date == $date) {
+        $current_list = $this->playersService->getCurrentList($nid, $game_type);
+      }
+
+      // If there is a list of current players, get the
+      // form element for it.
+      if (count($current_list) > 0) {
+
+        // Set the details.
+        $form['current_list'] = [
+          '#type' => 'markup',
+          '#markup' => '<details class="players-details" data-once="details">',
+          '#prefix' => '<p>',
+          '#suffix' => '</details></p>',
+        ];
+
+        // Set the summary.
+        $form['current_list']['summary'] = [
+          '#type' => 'markup',
+          '#markup' => ' <summary class="players-summary" aria-expanded="true" aria-pressed="true">Seated players<span class="summary"></span></summary>',
+        ];
+
+        // The header for the table.
+        $header = [
+          ['data' => t('First Name')],
+          ['data' => t('Last Name')],
+        ];
+
+        // The table for the list.
+        $form['current_list']['list'] = [
+          '#type' => 'table',
+          '#title' => 'Current list',
+          '#header' => $header,
+          '#prefix' => '<p>',
+          '#suffix' => '</p>',
+        ];
+
+        // The counter for the table.
+        $count = 0;
+
+        // Step through and add players to list.
+        foreach ($current_list as $player) {
+
+          // Player first name.
+          $form['current_list']['list'][$count]['first_name'] = [
+            '#type' => 'markup',
+            '#markup' => $player->first_name,
+          ];
+
+          // Player last name.
+          $form['current_list']['list'][$count]['last_name'] = [
+            '#type' => 'markup',
+            '#markup' => $player->last_name,
+          ];
+
+          $count++;
+        }
+      }
     }
 
     // Only add submit button if there is a list.

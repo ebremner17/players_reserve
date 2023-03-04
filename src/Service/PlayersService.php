@@ -361,4 +361,30 @@ class PlayersService  {
     return $tourneys;
   }
 
+  /**
+   * Function to get the current list of players.
+   *
+   * @param int $nid
+   *   The node id.
+   * @param string $game_type
+   *   The type of game.
+   *
+   * @return array
+   *   Array of current players.
+   */
+  public function getCurrentList(int $nid, string $game_type) {
+
+    // The query to get the current list of players.
+    $query = $this->database->select('players_reserve', 'pr')
+      ->fields('pr', ['first_name', 'last_name'])
+      ->condition('pr.nid', $nid)
+      ->condition('pr.game_type', $game_type)
+      ->condition('seated', 1)
+      ->orderBy('last_name');
+
+    $current_list = $query->execute()->fetchAll();
+
+    return $current_list;
+  }
+
 }
