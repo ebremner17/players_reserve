@@ -240,40 +240,73 @@ class PlayersReserveAddForm extends FormBase {
     // Array to store the default values for the games.
     $default_values = [];
 
-    // The Friday dates that are exempt from the radio
+    // The Saturday dates that are exempt from the radio
     // buttons, doenst happen often.
-    $friday_exempt_dates = [
+    $saturday_exempt_dates = [
       '2022-12-30',
     ];
 
     // Need to allow for only single selections for players
-    // on Fridays.
+    // on Saturdays.
     if (
       count($options) > 1 &&
-      date("l", strtotime($date)) == "Friday" &&
-      !in_array(date("Y-m-d", strtotime($date)), $friday_exempt_dates) &&
+      date("l", strtotime($date)) == "Saturday" &&
+      !in_array(date("Y-m-d", strtotime($date)), $saturday_exempt_dates) &&
       !$this->playersService->isFloor()
     ) {
+
+      $tourney_options = [];
+      $cash_options = [];
+      $default_values_tourney = [];
+      $default_values_cash = [];
+
+      foreach ($options as $index => $option) {
+        if (str_starts_with($index, 'Tournament')) {
+          $tourney_options[$index] = $option;
+        }
+        else {
+          $cash_options[$index] = $option;
+        }
+      }
 
       // Step through each of the games and add the
       // game title if the flag is set.
       foreach ($games['games'] as $game) {
 
+
         // If the flag for the user as being reserved is
         // set then add to the default values.
         if ($game['reserved_flag']) {
-          $default_values = $game['title'];
+          if (str_starts_with($game['title'], 'Tournament')){
+            $default_values_tourney[] = $game['title'];
+          }
+          else {
+            $default_values_cash = $game['title'];
+          }
         }
       }
 
-      // The games element for Friday nights.
-      $form['games'] = [
-        '#type' => 'radios',
-        '#options' => $options,
-        '#title' => $this->t('Game types'),
-        '#required' => $this->playersService->isFloor() ? TRUE : FALSE,
-        '#default_value' => $default_values,
-      ];
+      if (!empty($tourney_options)) {
+        $form['tourney_games'] = [
+          '#type' => 'checkboxes',
+          '#options' => $tourney_options,
+          '#title' => $this->t('Tournament(s)'),
+          '#required' => $this->playersService->isFloor() ? TRUE : FALSE,
+          '#default_value' => $default_values_tourney,
+        ];
+      }
+
+      if (!empty($cash_options)) {
+
+        // The games element for Saturday nights.
+        $form['games'] = [
+          '#type' => 'radios',
+          '#options' => $cash_options,
+          '#title' => $this->t('Cash Game(s)'),
+          '#required' => $this->playersService->isFloor() ? TRUE : FALSE,
+          '#default_value' => $default_values_cash,
+        ];
+      }
     }
     else {
 
@@ -373,6 +406,32 @@ class PlayersReserveAddForm extends FormBase {
         ->condition('nid', $values['nid'])
         ->condition('uid', $user->id())
         ->execute();
+    }
+
+    // If there are tourney games at them to the reserve.
+    if (isset($values['tourney_games'])) {
+
+      // Step through each of the game types and insert
+      // the details for the user/game.
+      foreach ($values['tourney_games'] as $game_type) {
+
+        // If there is a game selected, then add it
+        // to the reserve.
+        if ($game_type !== 0) {
+          $this->database
+            ->insert('players_reserve')
+            ->fields([
+              'uid' => $uid,
+              'nid' => $nid,
+              'first_name' => $first_name,
+              'last_name' => $last_name,
+              'game_type' => $game_type,
+              'reserve_time' => $reserve_time,
+              'seated' => $player_is_seated,
+            ])
+            ->execute();
+        }
+      }
     }
 
     // Need to check if we are using multiple selections or not.
