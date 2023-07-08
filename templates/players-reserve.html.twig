@@ -1,3 +1,10 @@
+{% if not games.floor and games.header_text %}
+  <div class="players-header-text"{% if games.header_text.bg_color %} style="background-color: {{ games.header_text.bg_color }}"{% endif %}>
+    <div class="players-header-text__text players-contained-width">
+      {{ games.header_text.text }}
+    </div>
+  </div>
+{% endif %}
 <div class="players-contained-width">
   {% if games.floor %}
     <details class="players-floor-date">

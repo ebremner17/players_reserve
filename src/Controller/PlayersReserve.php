@@ -102,6 +102,24 @@ class PlayersReserve extends ControllerBase {
     // If there is node, get the info about the games.
     if ($node) {
 
+      // Get the header text config.
+      $config = \Drupal::config('players_site.header_text');
+
+      // Get the actual header text.
+      $header_text = $config->get('header_text');
+
+      // If there is header text, add to the variables.
+      if ($header_text) {
+
+        $games['header_text']['text'] = [
+          '#type' => 'processed_text',
+          '#text' => $header_text['value'],
+          '#format' => $header_text['format'],
+        ];
+
+        $games['header_text']['bg_color'] = $config->get('bg_color');
+      }
+
       // Flag for if floor.
       $games['floor'] = $this->playersService->isFloor();
 

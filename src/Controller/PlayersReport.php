@@ -165,7 +165,7 @@ class PlayersReport extends ControllerBase {
       ->fields('ln', ['field_user_last_name_value'])
       ->fields('fn', ['field_user_first_name_value'])
       ->fields('p', ['field_user_phone_local_number'])
-      ->fields('ufd', ['mail']);
+      ->fields('ufd', ['id', 'mail']);
 
     $query->join('user__field_user_first_name', 'fn', 'fn.entity_id = ufd.uid');
     $query->join('user__field_user_last_name', 'ln', 'ln.entity_id = ufd.uid');
@@ -180,6 +180,7 @@ class PlayersReport extends ControllerBase {
       ['data' => $this->t('First Name')],
       ['data' => $this->t('Phone')],
       ['data' => $this->t('Email')],
+      ['data' => $this->t('Last login')],
     ];
 
     foreach ($users as $user) {
