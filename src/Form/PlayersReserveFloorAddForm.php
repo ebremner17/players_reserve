@@ -93,6 +93,15 @@ class PlayersReserveFloorAddForm extends FormBase {
         '#type' => 'markup',
         '#markup' => 'There are currently no players reserved for this game.'
       ];
+
+      // Get the url and date, not it can be reserve.
+      $url = explode('/', \Drupal::request()->getRequestUri());
+      $url_date = end($url);
+
+      // Get the corrected date.
+      $date = $this->playersService->getCorrectDate();
+
+      $this->getCurrentListForm($form, $url_date, $date, $nid, $game_type);
     }
     else {
 
@@ -177,9 +186,6 @@ class PlayersReserveFloorAddForm extends FormBase {
         $count++;
       }
 
-      // Set the current list.
-      $current_list = [];
-
       // Get the url and date, not it can be reserve.
       $url = explode('/', \Drupal::request()->getRequestUri());
       $url_date = end($url);
@@ -187,66 +193,7 @@ class PlayersReserveFloorAddForm extends FormBase {
       // Get the corrected date.
       $date = $this->playersService->getCorrectDate();
 
-      // If we are on todays date or just /reserve,
-      // get the list of current players.
-      if ($url_date == 'reserve' || $url_date == $date) {
-        $current_list = $this->playersService->getCurrentList($nid, $game_type);
-      }
-
-      // If there is a list of current players, get the
-      // form element for it.
-      if (count($current_list) > 0) {
-
-        // Set the details.
-        $form['current_list'] = [
-          '#type' => 'markup',
-          '#markup' => '<details class="players-details" data-once="details">',
-          '#prefix' => '<p>',
-          '#suffix' => '</details></p>',
-        ];
-
-        // Set the summary.
-        $form['current_list']['summary'] = [
-          '#type' => 'markup',
-          '#markup' => ' <summary class="players-summary" aria-expanded="true" aria-pressed="true">Seated players<span class="summary"></span></summary>',
-        ];
-
-        // The header for the table.
-        $header = [
-          ['data' => t('First Name')],
-          ['data' => t('Last Name')],
-        ];
-
-        // The table for the list.
-        $form['current_list']['list'] = [
-          '#type' => 'table',
-          '#title' => 'Current list',
-          '#header' => $header,
-          '#prefix' => '<p>',
-          '#suffix' => '</p>',
-        ];
-
-        // The counter for the table.
-        $count = 0;
-
-        // Step through and add players to list.
-        foreach ($current_list as $player) {
-
-          // Player first name.
-          $form['current_list']['list'][$count]['first_name'] = [
-            '#type' => 'markup',
-            '#markup' => $player->first_name,
-          ];
-
-          // Player last name.
-          $form['current_list']['list'][$count]['last_name'] = [
-            '#type' => 'markup',
-            '#markup' => $player->last_name,
-          ];
-
-          $count++;
-        }
-      }
+      $this->getCurrentListForm($form, $url_date, $date, $nid, $game_type);
     }
 
     // Only add submit button if there is a list.
@@ -262,6 +209,93 @@ class PlayersReserveFloorAddForm extends FormBase {
     }
 
     return $form;
+  }
+
+  /**
+   * Function to get the current list.
+   *
+   * @param array &$form
+   *   The form.
+   * @param string $url_date
+   *   The url date.
+   * @param string $date
+   *   The current date.
+   * @param int $nid
+   *   The node id.
+   * @param string $game_type
+   *   The type of game.
+   */
+  private function getCurrentListForm(
+    array &$form,
+    string $url_date,
+    string $date,
+    int $nid,
+    string $game_type
+  ) {
+
+    // Set the current list.
+    $current_list = [];
+
+    // If we are on todays date or just /reserve,
+    // get the list of current players.
+    if ($url_date == 'reserve' || $url_date == $date) {
+      $current_list = $this->playersService->getCurrentList($nid, $game_type);
+    }
+
+    // If there is a list of current players, get the
+    // form element for it.
+    if (count($current_list) > 0) {
+
+      // Set the details.
+      $form['current_list'] = [
+        '#type' => 'markup',
+        '#markup' => '<details class="players-details" data-once="details">',
+        '#prefix' => '<p>',
+        '#suffix' => '</details></p>',
+      ];
+
+      // Set the summary.
+      $form['current_list']['summary'] = [
+        '#type' => 'markup',
+        '#markup' => ' <summary class="players-summary" aria-expanded="true" aria-pressed="true">Seated players<span class="summary"></span></summary>',
+      ];
+
+      // The header for the table.
+      $header = [
+        ['data' => t('First Name')],
+        ['data' => t('Last Name')],
+      ];
+
+      // The table for the list.
+      $form['current_list']['clist'] = [
+        '#type' => 'table',
+        '#title' => 'Current list',
+        '#header' => $header,
+        '#prefix' => '<p>',
+        '#suffix' => '</p>',
+      ];
+
+      // The counter for the table.
+      $count = 0;
+
+      // Step through and add players to list.
+      foreach ($current_list as $player) {
+
+        // Player first name.
+        $form['current_list']['clist'][$count]['first_name'] = [
+          '#type' => 'markup',
+          '#markup' => $player->first_name,
+        ];
+
+        // Player last name.
+        $form['current_list']['clist'][$count]['last_name'] = [
+          '#type' => 'markup',
+          '#markup' => $player->last_name,
+        ];
+
+        $count++;
+      }
+    }
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state) {

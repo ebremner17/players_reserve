@@ -34,15 +34,19 @@
         {% if game.notes %}
           {{ game.notes }}
         {% endif %}
+        {% if game.reserves %}
+          <div class="players-reserves">
+            Players on reserve list: {{ game.reserves.reserved }}<br />
+            {% if game.reserves.seated %}
+              Seated players: {{ game.reserves.seated }}
+            {% endif %}
+          </div>
+        {% endif %}
         {% if games.floor %}
           <details class="players-details">
             <summary class="players-summary">List</summary>
             <div class="players-content">
-              {% if game.list and length >= 0 %}
-                {{ drupal_form('Drupal\\players_reserve\\Form\\PlayersReserveFloorAddForm', games.nid, game.title) }}
-              {% else %}
-                There is currently no players reserved for this game.
-              {% endif %}
+              {{ drupal_form('Drupal\\players_reserve\\Form\\PlayersReserveFloorAddForm', games.nid, game.title) }}
             </div>
           </details>
         {% endif %}

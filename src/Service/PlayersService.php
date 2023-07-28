@@ -184,6 +184,13 @@ class PlayersService  {
       // Load all paragraph objects.
       $paragraphs_objects = $paragraph_storage->loadMultiple($ids);
 
+      if (date('G') <= 4) {
+        $current_date = date( 'Y-m-d', strtotime( '-1 day'));
+      }
+      else {
+        $current_date = date( 'Y-m-d');
+      }
+
       // Step through each of the paragraph items and get
       // the game info.
       foreach ($paragraphs_objects as $paragraph) {
@@ -235,6 +242,21 @@ class PlayersService  {
           }
         }
 
+        // If this is the current date, get the info about
+        // the reserves.
+        if ($node->field_game_date->getValue()[0]['value'] == $current_date) {
+
+          // Get the start time and am/pm.
+          $start_time = $paragraph->field_start_time->getValue()[0]['value'];
+          $start_time_am_pm = $paragraph->field_start_time_am_pm->getValue()[0]['value'];
+
+          // Get the start time and the current time to compare.
+          $start_time = date('G', strtotime($start_time . $start_time_am_pm)) - 1;
+          $current_time = date('G');
+
+          $reserves = $this->getCurrentReserveStats($node, $game_type, $start_time <= $current_time);
+        }
+
         // Add the game to the games array.
         $games[] = [
           'title' => $game_type,
@@ -243,11 +265,52 @@ class PlayersService  {
           'notes' => $notes,
           'list' => $list,
           'reserved_flag' => $reserved_flag,
+          'reserves' => $reserves ?? NULL,
         ];
       }
     }
 
     return $games;
+  }
+
+  /**
+   * Function to get the info about the current reserve.
+   *
+   * @param Node $node
+   *   The node.
+   * @param string $game_type
+   *   The game type.
+   * @param bool $show_seated
+   *   Flag to show the seated players.
+   *
+   * @return array
+   *   The array of info about the reserve.
+   */
+  public function getCurrentReserveStats(Node $node, string $game_type, bool $show_seated) {
+
+    // Get the number of reserved players.
+    $query = $this->database
+      ->select('players_reserve', 'pr')
+      ->fields('pr', ['reserve_id'])
+      ->condition('pr.nid', $node->id())
+      ->condition('pr.game_type', $game_type)
+      ->condition('pr.seated', 0)
+      ->condition('pr.removed', 0);
+    $reserved = count($query->execute()->fetchAll());
+
+    // Get the number of seated players.
+    $query = $this->database
+      ->select('players_reserve', 'pr')
+      ->fields('pr', ['reserve_id'])
+      ->condition('pr.nid', $node->id())
+      ->condition('pr.game_type', $game_type)
+      ->condition('pr.seated', 1);
+    $seated = count($query->execute()->fetchAll());
+
+    return [
+      'reserved' => $reserved,
+      'seated' => $show_seated ? $seated : NULL,
+    ];
   }
 
   /**
