@@ -352,6 +352,8 @@ class PlayersReserveFloorAddForm extends FormBase {
         $count++;
       }
     }
+
+    drupal_flush_all_caches();
   }
 
 }
