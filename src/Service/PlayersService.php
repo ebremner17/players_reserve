@@ -437,12 +437,18 @@ class PlayersService  {
    */
   public function getCurrentList(int $nid, string $game_type) {
 
+    $condition_or = new \Drupal\Core\Database\Query\Condition ('OR');
+
+    $condition_or->condition('pr.seated', 1);
+
+    $condition_or->condition('pr.pleft', 1);
+
     // The query to get the current list of players.
     $query = $this->database->select('players_reserve', 'pr')
-      ->fields('pr', ['first_name', 'last_name'])
+      ->fields('pr', ['reserve_id', 'first_name', 'last_name', 'seated', 'pleft'])
       ->condition('pr.nid', $nid)
       ->condition('pr.game_type', $game_type)
-      ->condition('seated', 1)
+      ->condition($condition_or)
       ->orderBy('last_name');
 
     $current_list = $query->execute()->fetchAll();

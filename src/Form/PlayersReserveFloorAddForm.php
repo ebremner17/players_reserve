@@ -249,7 +249,7 @@ class PlayersReserveFloorAddForm extends FormBase {
       // Set the details.
       $form['current_list'] = [
         '#type' => 'markup',
-        '#markup' => '<details class="players-details" data-once="details">',
+        '#markup' => '<details class="players-details" data-once="details" open="true">',
         '#prefix' => '<p>',
         '#suffix' => '</details></p>',
       ];
@@ -262,8 +262,9 @@ class PlayersReserveFloorAddForm extends FormBase {
 
       // The header for the table.
       $header = [
-        ['data' => t('First Name')],
-        ['data' => t('Last Name')],
+        t('First Name'),
+        t('Last Name'),
+        t('Seated/Left')
       ];
 
       // The table for the list.
@@ -293,6 +294,37 @@ class PlayersReserveFloorAddForm extends FormBase {
           '#markup' => $player->last_name,
         ];
 
+        // The list of options.
+        $form['current_list']['clist'][$count]['options'] = [
+          '#type' => 'container',
+        ];
+
+        // Get the default value for the seated/left.
+        $default_value = NULL;
+        if ($player->seated) {
+          $default_value = 'seated';
+        }
+        if ($player->pleft) {
+          $default_value = 'left';
+        }
+
+        // The seated/left element.
+        $form['current_list']['clist'][$count]['options']['seated-left'] = [
+          '#type' => 'radios',
+          '#options' => [
+            'seated' => $this->t('Seated'),
+            'left' => $this->t('Left'),
+          ],
+          '#default_value' => $default_value,
+        ];
+
+        // The reserve id element.
+        $form['current_list']['clist'][$count]['options']['reserve_id'] = [
+          '#type' => 'hidden',
+          '#default_value' => $player->reserve_id,
+        ];
+
+        // Increment the counter.
         $count++;
       }
     }
@@ -351,6 +383,40 @@ class PlayersReserveFloorAddForm extends FormBase {
         // Increment the counter.
         $count++;
       }
+    }
+
+    // If there is a current list, update it.
+    if (count($values['clist']) > 0) {
+
+      // Step through each of the current list and update it.
+      foreach ($values['clist'] as $clist) {
+
+        // Start the query.
+        $query = $this->database->update('players_reserve');
+
+        // Add the field to query based on the selection.
+        if ($clist['options']['seated-left'] == 'seated') {
+          $query->fields([
+            'seated' => 1,
+            'pleft' => 0,
+          ]);
+        }
+        else {
+          $query->fields([
+            'seated' => 0,
+            'pleft' => 1,
+          ]);
+        }
+
+        // Add the reserve id to the query.
+        $query->condition('reserve_id', $clist['options']['reserve_id']);
+
+        // Execute the query.
+        $query->execute();
+      }
+
+      // Add the message.
+      $this->messenger->addStatus($this->t('The current list has been updated'));
     }
 
     drupal_flush_all_caches();
