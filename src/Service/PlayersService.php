@@ -449,6 +449,7 @@ class PlayersService  {
       ->condition('pr.nid', $nid)
       ->condition('pr.game_type', $game_type)
       ->condition($condition_or)
+      ->orderBy('pr.pleft')
       ->orderBy('last_name');
 
     $current_list = $query->execute()->fetchAll();
