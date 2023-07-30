@@ -293,8 +293,42 @@ class PlayersReserveFloorAddForm extends FormBase {
       // The counter for the table.
       $count = 0;
 
+      // Set the player left flag.
+      $player_left_flag = FALSE;
+
       // Step through and add players to list.
       foreach ($current_list as $player) {
+
+        // If this players has left and the flag is not set,
+        // then add a blank row for display.
+        if ($player->pleft && !$player_left_flag) {
+
+          // Reset the rows array.
+          $rows = [];
+
+          // Add the row with blank and the class.
+          for ($i = 0; $i < 3; $i++) {
+            $rows[] = [
+              'data' => [
+                '#type' => 'markup',
+                '#markup' => '',
+              ],
+              '#wrapper_attributes' => [
+                'class' => ['players-reserve__black'],
+              ],
+            ];
+          }
+
+          // Add the rows to the list.
+          $form['current_list']['clist'][$count] = $rows;
+
+          // Set the player left flag.
+          $player_left_flag = TRUE;
+
+          // Increment the counter.
+          $count++;
+        }
+
 
         // Player first name.
         $form['current_list']['clist'][$count]['first_name'] = [
