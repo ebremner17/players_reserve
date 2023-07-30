@@ -275,7 +275,7 @@ class PlayersService  {
           }
 
           // Get the reserve stats.
-          $reserves = $this->getCurrentReserveStats($node, $game_type, $start_time <= $show_seated);
+          $reserves = $this->getCurrentReserveStats($node, $game_type, $show_seated);
         }
 
         // Add the game to the games array.
@@ -317,7 +317,7 @@ class PlayersService  {
       ->condition('pr.game_type', $game_type)
       ->condition('pr.seated', 0)
       ->condition('pr.removed', 0)
-      ->condition('pr.pleft');
+      ->condition('pr.pleft', 0);
     $reserved = count($query->execute()->fetchAll());
 
     // Get the number of seated players.
