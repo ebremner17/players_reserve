@@ -196,8 +196,22 @@ class PlayersReserveFloorAddForm extends FormBase {
       $this->getCurrentListForm($form, $url_date, $date, $nid, $game_type);
     }
 
-    // Only add submit button if there is a list.
+    // Show submit button flag.
+    $show_submit_button = FALSE;
+
+    // If there is a list, set the show submit button flag.
     if (count($list) > 0) {
+      $show_submit_button = TRUE;
+    }
+
+    // If there is a current list, set the show submit
+    // button flag.
+    if (array_key_exists(0, $form['current_list']['clist'])) {
+      $show_submit_button = TRUE;
+    }
+
+    // Only add submit button if there is a list.
+    if ($show_submit_button) {
 
       // The submit button.
       $form['actions']['#type'] = 'actions';
