@@ -246,15 +246,36 @@ class PlayersService  {
         // the reserves.
         if ($node->field_game_date->getValue()[0]['value'] == $current_date) {
 
-          // Get the start time and am/pm.
+          // Get the start time.
           $start_time = $paragraph->field_start_time->getValue()[0]['value'];
           $start_time_am_pm = $paragraph->field_start_time_am_pm->getValue()[0]['value'];
-
-          // Get the start time and the current time to compare.
           $start_time = date('G', strtotime($start_time . $start_time_am_pm)) - 1;
+
+          // Get the end time.
+          $end_time = $paragraph->field_end_time->getValue()[0]['value'];
+          $end_time_am_pm = $paragraph->field_end_time_am_pm->getValue()[0]['value'];
+          $end_time = date('G', strtotime($end_time . $end_time_am_pm));
+
+          // Get the current time.
           $current_time = date('G');
 
-          $reserves = $this->getCurrentReserveStats($node, $game_type, $start_time <= $current_time);
+          // Flag to show the seated players.
+          $show_seated = FALSE;
+
+          // If the current time is between 0 and the end time,
+          // set the show seated flag.
+          if ($current_time >= 0 && $current_time <= $end_time) {
+            $show_seated = TRUE;
+          }
+
+          // If the start time is less than the current time,
+          // set the show seated flag.
+          if ($start_time <= $current_time) {
+            $show_seated = TRUE;
+          }
+
+          // Get the reserve stats.
+          $reserves = $this->getCurrentReserveStats($node, $game_type, $start_time <= $show_seated);
         }
 
         // Add the game to the games array.
