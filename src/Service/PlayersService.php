@@ -316,7 +316,8 @@ class PlayersService  {
       ->condition('pr.nid', $node->id())
       ->condition('pr.game_type', $game_type)
       ->condition('pr.seated', 0)
-      ->condition('pr.removed', 0);
+      ->condition('pr.removed', 0)
+      ->condition('pr.pleft');
     $reserved = count($query->execute()->fetchAll());
 
     // Get the number of seated players.
@@ -353,6 +354,7 @@ class PlayersService  {
       ->condition('pr.game_type', $game_type)
       ->condition('pr.seated', 0)
       ->condition('pr.removed', 0)
+      ->condition('pr.pleft', 0)
       ->orderBy('pr.reserve_time');
 
     return $query->execute()->fetchAll();
