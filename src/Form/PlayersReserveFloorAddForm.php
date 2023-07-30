@@ -206,7 +206,10 @@ class PlayersReserveFloorAddForm extends FormBase {
 
     // If there is a current list, set the show submit
     // button flag.
-    if (array_key_exists(0, $form['current_list']['clist'])) {
+    if (
+      isset($form['current_list']['clist']) &&
+      array_key_exists(0, $form['current_list']['clist'])
+    ) {
       $show_submit_button = TRUE;
     }
 
