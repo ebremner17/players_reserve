@@ -349,58 +349,63 @@ class PlayersReserveFloorAddForm extends FormBase {
     // Get the values from the form state.
     $values = $form_state->getValues();
 
-    // Get the list from the form state.
-    $list = $values['list'];
+    // If ther is a list process it.
+    if (isset($values['list']) && count($values['list']) > 0) {
 
-    // Get the list using the players service.
-    $old_list = $this->playersService->getList($values['nid'], $values['game_type']);
+      // Get the list from the form state.
+      $list = $values['list'];
 
-    $count = 0;
-    // Step through the list and update any players info.
-    foreach ($list as $player) {
+      // Get the list using the players service.
+      $old_list = $this->playersService->getList($values['nid'], $values['game_type']);
 
-      // If the player is marked as seated or removed, update the DB.
-      if ($player['options']['seated'] || $player['options']['remove']) {
+      // Counter for the number of players.
+      $count = 0;
 
-        // Start the query.
-        $query = $this->database->update('players_reserve');
+      // Step through the list and update any players info.
+      foreach ($list as $player) {
 
-        // Add the field to query based on the selection.
-        if ($player['options']['seated']) {
-          $query->fields([
-            'seated' => 1,
-          ]);
-          $status = 'seated';
+        // If the player is marked as seated or removed, update the DB.
+        if ($player['options']['seated'] || $player['options']['remove']) {
+
+          // Start the query.
+          $query = $this->database->update('players_reserve');
+
+          // Add the field to query based on the selection.
+          if ($player['options']['seated']) {
+            $query->fields([
+              'seated' => 1,
+            ]);
+            $status = 'seated';
+          } else {
+            $query->fields([
+              'removed' => 1,
+            ]);
+            $status = 'removed';
+          }
+
+          // Add the reserve id to the query.
+          $query->condition('reserve_id', $player['options']['reserve_id']);
+
+          // Execute the query.
+          $query->execute();
+
+          // Get the player info from the old list.
+          $player_info = $old_list[$count];
+
+          // Get the player name.
+          $player_name = $player_info->first_name . ' ' . $player_info->last_name;
+
+          // Add the message.
+          $this->messenger->addStatus($this->t('The player(s) has been marked as @status', ['@status' => $status]));
+
+          // Increment the counter.
+          $count++;
         }
-        else {
-          $query->fields([
-            'removed' => 1,
-          ]);
-          $status = 'removed';
-        }
-
-        // Add the reserve id to the query.
-        $query->condition('reserve_id', $player['options']['reserve_id']);
-
-        // Execute the query.
-        $query->execute();
-
-        // Get the player info from the old list.
-        $player_info = $old_list[$count];
-
-        // Get the player name.
-        $player_name = $player_info->first_name . ' ' . $player_info->last_name;
-
-        // Add the message.
-        $this->messenger->addStatus($this->t('The player(s) has been marked as @status', ['@status' => $status]));
-
-        // Increment the counter.
-        $count++;
       }
     }
 
     // If there is a current list, update it.
-    if (count($values['clist']) > 0) {
+    if (isset($values['clist']) && count($values['clist']) > 0) {
 
       // Step through each of the current list and update it.
       foreach ($values['clist'] as $clist) {
