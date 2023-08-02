@@ -486,7 +486,7 @@ class PlayersReserveAddForm extends FormBase {
       $this->messenger->addStatus('Your reserve has been added/updated.');
     }
 
-    drupal_flush_all_caches();
+//    drupal_flush_all_caches();
 
     $form_state->setRedirect('players_reserve.reserve');
   }

@@ -475,7 +475,7 @@ class PlayersReserveFloorAddForm extends FormBase {
       $this->messenger->addStatus($this->t('The current list has been updated'));
     }
 
-    drupal_flush_all_caches();
+//    drupal_flush_all_caches();
   }
 
 }

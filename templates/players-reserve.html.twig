@@ -34,14 +34,14 @@
         {% if game.notes %}
           {{ game.notes }}
         {% endif %}
-        {% if game.reserves %}
-          <div class="players-reserves">
-            Players on reserve list: {{ game.reserves.reserved }}<br />
-            {% if game.reserves.seated %}
-              Seated players: {{ game.reserves.seated }}
-            {% endif %}
-          </div>
-        {% endif %}
+{#        {% if game.reserves %}#}
+{#          <div class="players-reserves">#}
+{#            Players on reserve list: {{ game.reserves.reserved }}<br />#}
+{#            {% if game.reserves.seated %}#}
+{#              Seated players: {{ game.reserves.seated }}#}
+{#            {% endif %}#}
+{#          </div>#}
+{#        {% endif %}#}
         {% if games.floor %}
           <details class="players-details">
             <summary class="players-summary">List</summary>
