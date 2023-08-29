@@ -6,6 +6,8 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Database\Connection;
+use Drupal\Core\Url;
+use Drupal\media\Entity\Media;
 use Drupal\node\Entity\Node;
 
 /**
@@ -479,5 +481,77 @@ class PlayersService  {
 
     return $current_list;
   }
+
+  /**
+   * {@inheritDoc}
+   */
+  public function prepareResponsiveImage(?Media $entity, string $image_style, string $field_name, bool $absolute_url = FALSE): array {
+
+    // Ensure that we can load an entity on the media.
+    if ($entity && isset($entity->$field_name->entity)) {
+
+      // Load in the file object if we have one.
+      if ($file = $entity->$field_name->entity) {
+
+        // Need to set these variables so that responsive image function,
+        // has all the necessary info to process the image style.
+        $variables['uri'] = $file->getFileUri();
+        $variables['responsive_image_style_id'] = $image_style;
+
+        // Set the alt for the image.
+        $variables['alt'] = $entity->$field_name->alt;
+
+        // This is a function from the responsive image module that sets all
+        // the variables for the sources of the responsive image.
+        template_preprocess_responsive_image($variables);
+
+        // Step through each of the sources and setup our own sources array.
+        foreach ($variables['sources'] as $source) {
+
+          // If the absolute url flag is set, the get the absolute
+          // url to the srcset, otherwise just the relative.
+          if ($absolute_url) {
+            $srcset = URL::fromUri('internal:' . $source->storage()['srcset']->value(), ['absolute' => TRUE])->toString();
+          }
+          else {
+            $srcset = $source->storage()['srcset']->value();
+          }
+
+          $srcset_parts = explode('/', $srcset);
+
+          foreach ($srcset_parts as $srcset_part) {
+            if (strpos($srcset_part, 'ris_players') !== FALSE) {
+              $style = $srcset_part;
+              break;
+            }
+          }
+
+          $variables['responsive_sources'][] = [
+            'srcset' => $srcset,
+            'media' => $source->storage()['media']->value(),
+            'type' => $source->storage()['type']->value(),
+            'style' => $style ?? NULL,
+          ];
+        }
+
+        return $variables;
+      }
+    }
+
+    return [];
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  public function getResponsiveImageStyles(): array {
+    return [
+      'is_players_large',
+      'is_players_medium',
+      'is_players_small',
+      'is_players_xsmall',
+    ];
+  }
+
 
 }
