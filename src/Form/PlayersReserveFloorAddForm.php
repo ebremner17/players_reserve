@@ -402,7 +402,16 @@ class PlayersReserveFloorAddForm extends FormBase {
       foreach ($list as $player) {
 
         // If the player is marked as seated or removed, update the DB.
-        if ($player['options']['seated'] || $player['options']['remove']) {
+        if (
+          (
+            isset($player['options']['seated']) &&
+            $player['options']['seated']
+          ) ||
+          (
+            isset($player['options']['remove']) &&
+            $player['options']['remove']
+          )
+        ) {
 
           // Start the query.
           $query = $this->database->update('players_reserve');
