@@ -190,6 +190,15 @@ class PlayersReserveAddForm extends FormBase {
         '#type' => 'entity_autocomplete',
         '#title' => $this->t('User names'),
         '#target_type' => 'user',
+        '#selection_handler' => 'views',
+        '#selection_settings' => [
+          'view' => [
+            'view_name' => 'pi_view_users_by_name',
+            'display_name' => 'member',
+            'arguments' => []
+          ],
+          'match_operator' => 'CONTAINS'
+        ],
       ];
 
       // Fieldset for the player info, if they are not
