@@ -9,6 +9,8 @@ use Drupal\Core\Database\Connection;
 use Drupal\Core\Url;
 use Drupal\media\Entity\Media;
 use Drupal\node\Entity\Node;
+use Drupal\paragraphs\Entity\Paragraph;
+use Drupal\user\Entity\User;
 
 /**
  * Class PlayersService.
@@ -422,6 +424,10 @@ class PlayersService  {
       // has a tournament.
       foreach ($games as $game) {
 
+        // Resetting the game info array, so that we do not
+        // get information that we do not want.
+        $game_info = [];
+
         // If the node has a tournament then add to array.
         if (str_contains($game['title'], 'Tournament')) {
 
@@ -433,15 +439,34 @@ class PlayersService  {
 
           $result = $query->execute()->fetchAssoc();
 
-          // The tourney info.
-          $tourneys[] = [
-            'display_date' => date('l F j, Y', strtotime($node->label())),
-            'date' => $node->label(),
-            'title' => $game['title'],
-            'start_time' => $game['start_time'],
-            'end_time' => $game['end_time'],
-            'reserved_flag' => $result ? TRUE : FALSE,
-          ];
+          $game_info['open_time'] = $game['start_time'] . ' - ' . $game['end_time'];
+
+          // Get the game info value from the node.
+          $info = $node->field_pi_game_info->getValue();
+
+          // If there is a value add it to the game info.
+          if ($info && isset($info[0]['value'])) {
+            $game_info['info'] = [
+              '#type' => 'processed_text',
+              '#text' => $info[0]['value'],
+              '#format' => $info[0]['format'],
+            ];
+          }
+
+          // Get if the date is current.
+          if ($this->getCorrectDate() == $node->field_game_date->value) {
+            $game_info['current'] = TRUE;
+          }
+          else {
+            $game_info['current'] = FALSE;
+          }
+
+          $game_info['games'] = [$game['title']];
+          $game_info['game_day'] = date('l', strtotime($node->field_game_date->value));
+          $game_info['game_date'] = date('M j, Y', strtotime($node->field_game_date->value));
+          $game_info['date'] = $node->field_game_date->value;
+
+          $tourneys[] = $game_info;
         }
       }
     }
@@ -551,6 +576,170 @@ class PlayersService  {
       'is_players_small',
       'is_players_xsmall',
     ];
+  }
+
+  /**
+   * Function to get the game info.
+   *
+   * @param Node $node
+   *   The node.
+   *
+   * @return array
+   *   Array of game info.
+   */
+  public function getGameInfo(Node $node): array {
+
+    // Reset the games array or at least have a blank.
+    $games = [];
+
+    // Get the game types from the node.
+    $game_types = $node->field_game_types->getValue();
+
+    // Step through each game and get the actual games.
+    foreach ($game_types as $game_type) {
+
+      // Load the paragraph.
+      $p = Paragraph::load($game_type['target_id']);
+
+      // Set the info about the game.
+      $games[] = [
+        'start_time' => $p->field_start_time->getValue()[0]['value'],
+        'start_time_am_pm' => $p->field_start_time_am_pm->getValue()[0]['value'],
+        'end_time' => $p->field_end_time->getValue()[0]['value'],
+        'end_time_am_pm' => $p->field_end_time_am_pm->getValue()[0]['value'],
+        'game_type' => $p->field_game_type->getValue()[0]['value'],
+      ];
+    }
+
+    // If there is only one game, can just use the first start and end time.
+    // If there is more than one start, we have to get the correct time.
+    if (count($games) == 1) {
+      $game_info['open_time'] = $games[0]['start_time'] . ' ' . $games[0]['start_time_am_pm'];
+      $game_info['open_time'] .= ' - ';
+      $game_info['open_time'] .= $games[0]['end_time'] . ' ' . $games[0]['end_time_am_pm'];
+    }
+    else {
+
+      // Reset the variables.
+      $start_time = NULL;
+      $start_time_am_pm = NULL;
+      $end_time = NULL;
+      $end_time_am_pm = NULL;
+
+      // Step through each of the games and get the correct
+      // start and end times.
+      foreach ($games as $game) {
+
+        // If there is no start time, set it.
+        // If there is a start time, then check if we should
+        // change it based on the new start time.
+        if (!$start_time) {
+          $start_time = $game['start_time'];
+          $start_time_am_pm = $game['start_time_am_pm'];
+        }
+        else {
+
+          // If the start time is less than the previous,
+          // we need to set the new start time.
+          if ($game['start_time'] < $start_time) {
+            $start_time = $game['start_time'];
+            $start_time_am_pm = $game['start_time_am_pm'];
+          }
+        }
+
+        // If there is no end time, set it.
+        // If there is an end time, check if we need
+        // to reset it based on the new end time.
+        if (!$end_time) {
+          $end_time = $game['end_time'];
+          $end_time_am_pm = $game['end_time_am_pm'];
+        }
+        else {
+
+          // Set the end time based on am or pm.
+          if ($game['end_time_am_pm'] == 'p.m.') {
+            if ($game['end_time'] > $end_time) {
+              $end_time = $game['end_time'];
+              $end_time_am_pm = $game['end_time_am_pm'];
+            }
+          }
+          if ($game['end_time_am_pm'] == 'a.m.') {
+            if ($game['end_time'] < $end_time) {
+              $end_time = $game['end_time'];
+              $end_time_am_pm = $game['end_time_am_pm'];
+            }
+          }
+        }
+      }
+
+      // Set the end time.
+      $game_info['open_time'] = $start_time . ' ' . $start_time_am_pm;
+      $game_info['open_time'] .= ' - ';
+      $game_info['open_time'] .= $end_time . ' ' . $end_time_am_pm;
+    }
+
+    // Get the dealers from the node.
+    $dealers = $node->field_pi_dealers->getValue();
+
+    // Step through each dealer and get the first name.
+    $count = 0;
+    $game_info['dealers'] = NULL;
+    foreach ($dealers as $dealer) {
+      if ($count > 0) {
+        $game_info['dealers'] .= ', ';
+      }
+      $user = User::load($dealer['target_id']);
+      $game_info['dealers'] .= $user->field_user_first_name->value;
+      $count++;
+    }
+
+    // Get the food value from the node.
+    $food = $node->field_pi_food->getValue();
+
+    // If there is a value add it to the game info.
+    if ($food && isset($food[0]['value'])) {
+      $game_info['food'] = [
+        '#type' => 'processed_text',
+        '#text' => $food[0]['value'],
+        '#format' => $food[0]['format'],
+      ];
+    }
+
+    // Get the game info value from the node.
+    $info = $node->field_pi_game_info->getValue();
+
+    // If there is a value add it to the game info.
+    if ($info && isset($info[0]['value'])) {
+      $game_info['info'] = [
+        '#type' => 'processed_text',
+        '#text' => $info[0]['value'],
+        '#format' => $info[0]['format'],
+      ];
+    }
+
+    // Get if the date is current.
+    if ($this->getCorrectDate() == $node->field_game_date->value) {
+      $game_info['current'] = TRUE;
+    }
+    else {
+      $game_info['current'] = FALSE;
+    }
+
+    // Check if there is a floor and get set values accordingly.
+    if ($node->field_pi_floor->entity) {
+      $game_info['floor'] = $node->field_pi_floor->entity->field_user_first_name->value;
+    }
+    else {
+      $game_info['floor'] = NULL;
+    }
+
+    // Set all the game info.
+    $game_info['games'] = $games;
+    $game_info['game_day'] = date('l', strtotime($node->field_game_date->value));
+    $game_info['game_date'] = date('M j, Y', strtotime($node->field_game_date->value));
+    $game_info['date'] = $node->field_game_date->value;
+
+    return $game_info;
   }
 
 
