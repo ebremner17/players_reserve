@@ -211,19 +211,6 @@ class PlayersService  {
           continue;
         }
 
-        // Get the notes of the game.
-        $notes = $paragraph->field_game_notes->getValue();
-
-        // If there are notes, then get the value and
-        // the format, if not leave as null.
-        if ($notes) {
-          $notes = [
-            '#type' => 'processed_text',
-            '#text' => $notes[0]['value'],
-            '#format' => $notes[0]['format'],
-          ];
-        }
-
         $list = '';
         $reserved_flag = FALSE;
 
@@ -287,7 +274,6 @@ class PlayersService  {
           'title' => $game_type,
           'start_time' => $paragraph->field_start_time->value . ' ' . $paragraph->field_start_time_am_pm->value,
           'end_time' => $paragraph->field_end_time->value . ' ' . $paragraph->field_end_time_am_pm->value,
-          'notes' => $notes,
           'list' => $list,
           'reserved_flag' => $reserved_flag,
           'reserves' => $reserves ?? NULL,
@@ -684,21 +670,6 @@ class PlayersService  {
       $game_info['open_time'] .= $end_time . ' ' . $end_time_am_pm;
     }
 
-    // Get the dealers from the node.
-    $dealers = $node->field_pi_dealers->getValue();
-
-    // Step through each dealer and get the first name.
-    $count = 0;
-    $game_info['dealers'] = NULL;
-    foreach ($dealers as $dealer) {
-      if ($count > 0) {
-        $game_info['dealers'] .= ', ';
-      }
-      $user = User::load($dealer['target_id']);
-      $game_info['dealers'] .= $user->field_user_first_name->value;
-      $count++;
-    }
-
     // Get the food value from the node.
     $food = $node->field_pi_food->getValue();
 
@@ -729,14 +700,6 @@ class PlayersService  {
     }
     else {
       $game_info['current'] = FALSE;
-    }
-
-    // Check if there is a floor and get set values accordingly.
-    if ($node->field_pi_floor->entity) {
-      $game_info['floor'] = $node->field_pi_floor->entity->field_user_first_name->value;
-    }
-    else {
-      $game_info['floor'] = NULL;
     }
 
     // Set all the game info.
