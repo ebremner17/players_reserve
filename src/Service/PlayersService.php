@@ -439,6 +439,8 @@ class PlayersService  {
 
           $result = $query->execute()->fetchAssoc();
 
+          $game_info['reserved_flag'] = $result ? TRUE : FALSE;
+
           $game_info['open_time'] = $game['start_time'] . ' - ' . $game['end_time'];
 
           // Get the game info value from the node.
@@ -465,6 +467,10 @@ class PlayersService  {
           $game_info['game_day'] = date('l', strtotime($node->field_game_date->value));
           $game_info['game_date'] = date('M j, Y', strtotime($node->field_game_date->value));
           $game_info['date'] = $node->field_game_date->value;
+          $game_info['title'] = $game['title'];
+          $game_info['start_time'] = $game['start_time'];
+          $game_info['end_time'] = $game['end_time'];
+          $game_info['display_date'] = date('l F j, Y', strtotime($node->label()));
 
           $tourneys[] = $game_info;
         }
