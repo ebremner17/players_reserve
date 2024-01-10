@@ -168,10 +168,14 @@ class PlayersService  {
    * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
-  public function getGames($node, $remove_tourney_flag = FALSE) {
+  public function getGames($node, $remove_tourney_flag = FALSE, int $uid = NULL) {
 
     if (!$node) {
       return [];
+    }
+
+    if (!$uid) {
+      $uid = $this->account->id();
     }
 
     $games = [];
@@ -218,12 +222,12 @@ class PlayersService  {
         if ($this->isFloor()) {
           $list = $this->getList($node->id(), $game_type);
         }
-        else if ($this->account->isAuthenticated()) {
+        else {
 
           $query = $this->database->select('players_reserve', 'pr')
             ->fields('pr', ['reserve_id'])
             ->condition('pr.nid', $node->id())
-            ->condition('pr.uid', $this->account->id())
+            ->condition('pr.uid', $uid)
             ->condition('pr.game_type', $game_type);
 
           $result = $query->execute()->fetchAssoc();

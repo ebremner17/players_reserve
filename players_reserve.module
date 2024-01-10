@@ -85,3 +85,8 @@ function players_reserve_page_attachments(array &$attachments) {
     $attachments['#attached']['library'][] = 'players_reserve/extra.admin';
   }
 }
+
+function password_generate($chars) {
+  $data = '1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcefghijklmnopqrstuvwxyz';
+  return substr(str_shuffle($data), 0, $chars);
+}

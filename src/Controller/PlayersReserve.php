@@ -91,117 +91,11 @@ class PlayersReserve extends ControllerBase {
     // Array to hold the game info.
     $games = [];
 
-    if (!$date) {
-      // Get the correct date.
-      $date = $this->playersService->getCorrectDate($date);
-    }
-
-    // Get the node based on the current date.
-    $node = $this->playersService->getGameNodeByDate($date);
-
-    // If there is node, get the info about the games.
-    if ($node) {
-
-      // Get the header text config.
-      $config = \Drupal::config('players_site.header_text');
-
-      // Get the actual header text.
-      $header_text = $config->get('header_text');
-
-      // If there is header text, add to the variables.
-      if ($header_text) {
-
-        $games['header_text']['text'] = [
-          '#type' => 'processed_text',
-          '#text' => $header_text['value'],
-          '#format' => $header_text['format'],
-        ];
-
-        $games['header_text']['bg_color'] = $config->get('bg_color');
-      }
-
-      // Flag for if floor.
-      $games['floor'] = $this->playersService->isFloor();
-
-      // Add the nid to the variables.
-      $games['nid'] = $node->id();
-
-      // Get the current user.
-      $user = $this->playersService->getCurrentUser();
-
-      // Set the user status to false,
-      // change only if logged in and not
-      // registered for the games.
-      $games['status'] = FALSE;
-
-      // If they are logged in, check if reserved.
-      // If they are not, set the message about being
-      // logged in and registered.
-      if ($this->account->isAuthenticated()) {
-
-//        // Get if user is reserved.
-//        $games['reserve'] = $this->playersService->checkUserReserved($user->id(), $node->id());
-
-//        // If they are not reserved, set flag to show button.
-//        // If they are reserved, set the message that
-//        // they are already reserved.
-//        if (!$reserve) {
-//          $games['status'] = TRUE;
-//        }
-//        else {
-//
-//          // Get the current status messages.
-//          $messages = $this->messenger->messagesByType('status');
-//
-//          // If there is no messages or there is no message
-//          // about already been added, add the message about
-//          // they have already reserved.
-//          if (
-//            $messages == NULL ||
-//            (
-//              isset($messages[0]) &&
-//              $messages[0] !== 'You have been added to the reserve.'
-//            )
-//          ) {
-//
-//            // Add the message about already being reserved.
-//            $this->messenger()->addStatus('You have already reserved for todays game.');
-//          }
-//        }
-      }
-      else {
-
-        // Add the message that you must be logged in.
-        $this->messenger()->addError('You must be logged in or registered with Players Inc to reserve a game.');
-      }
-    }
-
-    // Get the games.
-    $games['games'] = $this->playersService->getGames($node);
-
-    // Set the display date and actual date in the games array.
-    $games['display_date'] = date('l F j, Y', strtotime($date));
-    $games['date'] = $date;
-
-    // The roles not get tournaments for.
-    $roles = [
-      'administrator',
-      'owner',
-      'floor',
-    ];
-
-    // If the user is just a user, get the tournaments.
-    // If not return NULL array so the site doesn't complain.
-    if(empty(array_intersect($this->account->getRoles(), $roles))) {
-      $games['tourneys'] = $this->playersService->getTournaments();
-    }
-    else {
-      $games['tourneys'] = [];
-    }
-
+    // Array of the next six dates.
     $next_six_dates = [];
 
-    for ($i = 1; $i < 7; $i++) {
+    // Step through each date and get the games.
+    for ($i = 0; $i < 7; $i++) {
       $next_six_dates[] = date('Y-m-d', strtotime('now +' . $i . ' day'));
     }
 
@@ -209,20 +103,17 @@ class PlayersReserve extends ControllerBase {
     foreach ($next_six_dates as $next_date) {
 
       // Try and load the game node.
-      $node = current($this->entityTypeManager->getStorage('node')->loadByProperties(['title' => $next_date]));
+      $node = current(
+        $this->entityTypeManager
+          ->getStorage('node')
+          ->loadByProperties(['title' => $next_date])
+      );
 
       // If there is a game node add it to the future games.
       if ($node) {
-        $games['future_games'][] = [
-          'display_date' => date('l F j, Y', strtotime($next_date)),
-          'date' => $next_date,
-          'games' => $this->playersService->getGames($node, TRUE),
-        ];
+        $games['future_games'][] = $this->playersService->getGameInfo($node);
       }
     }
-
-    // Adding if logged in flag.
-    $games['is_logged_in'] = $this->account->isAuthenticated();
 
     // Set the render array.
     return [

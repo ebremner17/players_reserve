@@ -1,125 +1,18 @@
-{% if not games.floor and games.header_text %}
-  <div class="players-header-text"{% if games.header_text.bg_color %} style="background-color: {{ games.header_text.bg_color }}"{% endif %}>
-    <div class="players-header-text__text players-contained-width">
-      {{ games.header_text.text }}
-    </div>
-  </div>
-{% endif %}
-<div class="players-contained-width">
-  {% if games.floor %}
-    <details class="players-floor-date">
-      <summary>Date</summary>
-      <div class="players-content">
-        {{ drupal_form('Drupal\\players_reserve\\Form\\PlayersReserveFloorDateForm', games.date) }}
-      </div>
-    </details>
-  {% endif %}
-  <div class="players-reserve">
-    <h2>Today's Games</h2>
-    <h3>{{ games.display_date }}</h3>
-    {% if games.games %}
-      {% for game in games.games %}
-        <h4>
-          {% if not games.floor and games.is_logged_in %}
-            {% if game.reserved_flag %}
-              <span class="players-checkmark"></span>
-            {% else %}
-              <span class="players-x">
-                X
-              </span>
-            {% endif %}
-          {% endif %}
-          {{ game.title }}: {{ game.start_time }} - {{ game.end_time }}
-        </h4>
-        {% if game.notes %}
-          {{ game.notes }}
-        {% endif %}
-{#        {% if game.reserves %}#}
-{#          <div class="players-reserves">#}
-{#            Players on reserve list: {{ game.reserves.reserved }}<br />#}
-{#            {% if game.reserves.seated %}#}
-{#              Seated players: {{ game.reserves.seated }}#}
-{#            {% endif %}#}
-{#          </div>#}
-{#        {% endif %}#}
-        {% if games.floor %}
-          <details class="players-details">
-            <summary class="players-summary">List</summary>
-            <div class="players-content">
-              {{ drupal_form('Drupal\\players_reserve\\Form\\PlayersReserveFloorAddForm', games.nid, game.title) }}
-            </div>
-          </details>
-        {% endif %}
+{{ attach_library('players_theme/owl') }}
+<div class="players-games-block">
+  <div class="owl-carousel owl-theme">
+    {% if games.future_games | length > 0 %}
+      {% for game_info in games.future_games %}
+        {% include '@players_theme/templates/content/game.html.twig' with {
+          'game_day': game_info.game_day,
+          'open_time': game_info.open_time,
+          'games': game_info.games,
+          'info': game_info.info,
+          'food': game_info.food,
+          'date': game_info.date,
+          'current': game_info.current
+        } %}
       {% endfor %}
-
-      {% if games.is_logged_in %}
-        {% if games.floor %}
-          <a href="/reserve/add/{{ games.date }}">
-            <button class="players-button players-button--blue">Add player to the reserve</button>
-          </a>
-        {% else %}
-          {{ app.request.baseUrl }}
-          <a href="/reserve/add/{{ games.date }}">
-            <button class="players-button players-button--blue">Reserve</button>
-          </a>
-        {% endif %}
-      {% endif %}
-    {% else %}
-      There are currently no games scheduled, please check back later.
-    {% endif %}
-    {% if not games.floor and games.future_games | length > 0 %}
-      <h2>Cash Games</h2>
-      <div class="players-reserve-tourney">
-        {% for future_games in games.future_games %}
-          <h3>{{ future_games.display_date }}</h3>
-          {% for future_game in future_games.games %}
-            <h4>
-              {% if games.is_logged_in %}
-                {% if future_game.reserved_flag %}
-                  <span class="players-checkmark"></span>
-                {% else %}
-                  <span class="players-x">
-                  X
-                </span>
-                {% endif %}
-              {% endif %}
-              {{ future_game.title }}: {{ future_game.start_time }} - {{ future_game.end_time }}
-            </h4>
-          {% endfor %}
-          {% if games.is_logged_in %}
-            {{ app.request.baseUrl }}
-            <a href="/reserve/add/{{ future_games.date }}">
-              <button class="players-button players-button--blue">Reserve</button>
-            </a>
-          {% endif %}
-        {% endfor %}
-      </div>
-    {% endif %}
-    {% if games.tourneys | length > 0 %}
-      <h2>Tournaments</h2>
-      <div class="players-reserve-tourney">
-        {% for tourney in games.tourneys %}
-          <h3>{{ tourney.display_date }}</h3>
-          <h4>
-            {% if games.is_logged_in %}
-              {% if tourney.reserved_flag %}
-                <span class="players-checkmark"></span>
-              {% else %}
-                <span class="players-x">
-                X
-              </span>
-              {% endif %}
-            {% endif %}
-            {{ tourney.title }}: {{ tourney.start_time }} - {{ tourney.end_time }}
-          </h4>
-          {% if games.is_logged_in %}
-            {{ app.request.baseUrl }}
-            <a href="/reserve/add/{{ tourney.date }}">
-              <button class="players-button players-button--blue">Reserve</button>
-            </a>
-          {% endif %}
-        {% endfor %}
-      </div>
     {% endif %}
   </div>
 </div>

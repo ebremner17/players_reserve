@@ -1,21 +1,37 @@
 <?php
+
 /**
  * @file
- * Contains \Drupal\players_reserve\Form\PlayersAddReserveForm.
+ * Contains \Drupal\players_reserve\Form\PlayersReserveAddForm.php.
  */
+
 namespace Drupal\players_reserve\Form;
 
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Url;
-use Drupal\players_reserve\Service\PlayersService;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Messenger\MessengerInterface;
+use Drupal\players_reserve\Service\PlayersService;
+use Drupal\user\Entity\User;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Database\Connection;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class PlayersReserveAddForm extends FormBase {
+
+  /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
+   * The database connection.
+   *
+   * @var \Drupal\Core\Database\Connection
+   */
+  protected $database;
 
   /**
    * The players service.
@@ -32,40 +48,26 @@ class PlayersReserveAddForm extends FormBase {
   protected $messenger;
 
   /**
-   * The database connection.
-   *
-   * @var \Drupal\Core\Database\Connection
-   */
-  protected $database;
-
-  /**
-   * The entity type manager.
-   *
-   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
-   */
-  protected $entityTypeManager;
-
-  /**
-   * @param \Drupal\players_reserve\Service\PlayersService $playersService
-   *  The players service.
-   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
-   *   The messenger.
-   * @param \Drupal\Core\Database\Connection $database
-   *   The database
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
+   * @param \Drupal\Core\Database\Connection $database
+   *   The database
+   * @param \Drupal\players_reserve\Service\PlayersService $playersService
+   *   The players service.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   * *   The messenger.
    */
   public function __construct(
-    PlayersService $playersService,
-    MessengerInterface $messenger,
+    EntityTypeManagerInterface $entityTypeManager,
     Connection $database,
-    EntityTypeManagerInterface $entityTypeManager
+    PlayersService $playersService,
+    MessengerInterface $messenger
   ) {
 
+    $this->entityTypeManager = $entityTypeManager;
+    $this->database = $database;
     $this->playersService = $playersService;
     $this->messenger = $messenger;
-    $this->database = $database;
-    $this->entityTypeManager = $entityTypeManager;
   }
 
   /**
@@ -75,11 +77,10 @@ class PlayersReserveAddForm extends FormBase {
 
     // Instantiates this form class.
     return new static(
-    // Load the service required to construct this class.
-      $container->get('players_reserve.players_service'),
-      $container->get('messenger'),
+      $container->get('entity_type.manager'),
       $container->get('database'),
-      $container->get('entity_type.manager')
+      $container->get('players_reserve.players_service'),
+      $container->get('messenger')
     );
   }
 
@@ -87,273 +88,86 @@ class PlayersReserveAddForm extends FormBase {
    * {@inheritdoc}
    */
   public function getFormId() {
-    return 'players_add_reserve_form';
+    return 'players_reserve_add_form';
   }
 
   /**
    * {@inheritdoc}
    */
-  public function buildForm(array $form, FormStateInterface $form_state, $date = NULL) {
+  public function buildForm(
+    array $form,
+    FormStateInterface $form_state,
+    $date = NULL
+  ) {
 
-    // Array to hold the game info.
-    $games = [];
-
-    // Get the node based on the current date.
-    $node = $this->playersService->getGameNodeByDate($date);
-
-    // If there is node, get the info about the games.
-    if ($node) {
-
-      // Get the current user.
-      $user = $this->playersService->getCurrentUser();
-
-      // Set the user status to false,
-      // change only if logged in and not
-      // registered for the games.
-      $games['status'] = FALSE;
-
-      if (!$user->isAuthenticated()) {
-        $this->messenger()->addError('You must be logged in or registered with Players Inc to reserve a game.');
-        return [];
-      }
-    }
-    else {
-      $this->messenger()->addError('The are currently no games schedule for this date.');
-      return [];
+    // If the date is incorrect then redirect back to the reserve.
+    if (!preg_match('/202[4-9]{1}[-][0-9]{1}[1-9]{1}-[0-3]{1}[0-9]{1}/', $date)) {
+      return new RedirectResponse('/reserve');
     }
 
-    // Get the games.
-    $games['games'] = $this->playersService->getGames($node);
-
-    if (!$this->playersService->isFloor()) {
-      $future_date = date('Y-m-d', strtotime('now + 1week'));
-      if ($date > $future_date) {
-        foreach ($games['games'] as $index => $game) {
-          if (!str_contains($game['title'], 'Tournament')) {
-            unset($games['games'][$index]);
-          }
-          }
-      }
-    }
-
-    // If there are no games, meaning that we are on the wrong
-    // date for a regular users, then return to the reserve page.
-    // This can only happen when a user manually change the link
-    // in the browser.
-    if (empty($games['games'])) {
-      $url = Url::fromUri('internal:/reserve')->toString();
-      $response = new RedirectResponse($url);
-      $response->send();
-      return;
-    }
-
-    $form['#prefix'] = '<div class="players-contained-width">';
-    $form['#suffix'] = '</div>';
-
-    // Get the display date.
-    $form['display_date'] = [
-      '#markup' => '<h3>' . date('l F j, Y', strtotime($date)) . '</h3>',
-    ];
-
-    // Get the options for the type of games.
-    foreach ($games['games'] as $game) {
-      $options[$game['title']] = $game['title'] . ': ' . $game['start_time'] . ' - ' . $game['end_time'];
-    }
-
-    // If the user is floor, give option to add a player.
-    if ($this->playersService->isFloor()) {
-
-      // Choose if player is a user on the website.
-      $form['player_is_user'] = [
-        '#type' => 'select',
-        '#title' => $this->t('Is player a user of the website?'),
-        '#options' => [
-          '' => '-- Select --',
-          'yes' => 'Yes',
-          'no' => 'No',
-        ],
-      ];
-
-      // Fieldset for the player uid.
-      $form['player_uid'] = [
-        '#type' => 'fieldset',
-        '#title' => $this->t('User'),
-        '#states' => [
-          'visible' => [
-            ':input[name="player_is_user"]' => ['value' => 'yes'],
-          ],
-        ],
-      ];
-
-      // The player uid, using autocomplete.
-      $form['player_uid']['uid'] = [
-        '#type' => 'entity_autocomplete',
-        '#title' => $this->t('User names'),
-        '#target_type' => 'user',
-        '#selection_handler' => 'views',
-        '#selection_settings' => [
-          'view' => [
-            'view_name' => 'pi_view_users_by_name',
-            'display_name' => 'member',
-            'arguments' => []
-          ],
-          'match_operator' => 'CONTAINS'
-        ],
-      ];
-
-      // Fieldset for the player info, if they are not
-      // a registered user.
-      $form['player_info'] = [
-        '#type' => 'fieldset',
-        '#title' => $this->t('Player Info'),
-        '#states' => [
-          'visible' => [
-            ':input[name="player_is_user"]' => ['value' => 'no'],
-          ],
-        ],
-      ];
-
-      // The player first name.
-      $form['player_info']['first_name'] = [
-        '#type' => 'textfield',
-        '#title' => $this->t('First Name'),
-      ];
-
-      // The player last name.
-      $form['player_info']['last_name'] = [
-        '#type' => 'textfield',
-        '#title' => $this->t('Last Name'),
-      ];
-
-      $form['player_seated'] = [
-        '#type' => 'fieldset',
-        '#title' => $this->t('Seated'),
-        '#states' => [
-          'invisible' => [
-            ':input[name="uid"]' => ['value' => ''],
-            'or',
-            ':input[name="first_name"]' => ['value' => ''],
-            'or',
-            ':input[name="last_name"]' => ['value' => ''],
-          ],
-        ],
-      ];
-
-      // The player is seated for element.
-      $form['player_seated']['seated'] = [
-        '#type' => 'checkbox',
-        '#title' => $this->t('Player is seated'),
-      ];
-    }
-
-    // Array to store the default values for the games.
-    $default_values = [];
-
-    // The Saturday dates that are exempt from the radio
-    // buttons, doenst happen often.
-    $saturday_exempt_dates = [
-      '2022-12-30',
-    ];
-
-    // Need to allow for only single selections for players
-    // on Saturdays.
     if (
-      count($options) > 1 &&
-      date("l", strtotime($date)) == "Saturday" &&
-      !in_array(date("Y-m-d", strtotime($date)), $saturday_exempt_dates) &&
-      !$this->playersService->isFloor()
+      $form_state->has('page_num') &&
+      $form_state->get('page_num') == 2
     ) {
 
-      $tourney_options = [];
-      $cash_options = [];
-      $default_values_tourney = [];
-      $default_values_cash = [];
-
-      foreach ($options as $index => $option) {
-        if (str_starts_with($index, 'Tournament')) {
-          $tourney_options[$index] = $option;
-        }
-        else {
-          $cash_options[$index] = $option;
-        }
-      }
-
-      // Step through each of the games and add the
-      // game title if the flag is set.
-      foreach ($games['games'] as $game) {
-
-
-        // If the flag for the user as being reserved is
-        // set then add to the default values.
-        if ($game['reserved_flag']) {
-          if (str_starts_with($game['title'], 'Tournament')){
-            $default_values_tourney[] = $game['title'];
-          }
-          else {
-            $default_values_cash = $game['title'];
-          }
-        }
-      }
-
-      if (!empty($tourney_options)) {
-        $form['tourney_games'] = [
-          '#type' => 'checkboxes',
-          '#options' => $tourney_options,
-          '#title' => $this->t('Tournament(s)'),
-          '#required' => $this->playersService->isFloor() ? TRUE : FALSE,
-          '#default_value' => $default_values_tourney,
-        ];
-      }
-
-      if (!empty($cash_options)) {
-
-        // The games element for Saturday nights.
-        $form['games'] = [
-          '#type' => 'radios',
-          '#options' => $cash_options,
-          '#title' => $this->t('Cash Game(s)'),
-          '#required' => $this->playersService->isFloor() ? TRUE : FALSE,
-          '#default_value' => $default_values_cash,
-        ];
-      }
-    }
-    else {
-
-      // Step through each of the games and add the
-      // game title if the flag is set.
-      foreach ($games['games'] as $game) {
-
-        // If the flag for the user as being reserved is
-        // set then add to the default values.
-        if ($game['reserved_flag']) {
-          $default_values[] = $game['title'];
-        }
-      }
-
-      // The games element for everything other than
-      // Friday nights.
-      $form['games'] = [
-        '#type' => 'checkboxes',
-        '#options' => $options,
-        '#title' => $this->t('Game types'),
-        '#required' => $this->playersService->isFloor() ? TRUE : FALSE,
-        '#default_value' => $default_values,
-      ];
+      return $this->playersReservePageTwo($form, $form_state);
     }
 
-    // Hidden value for the nid.
-    $form['nid'] = [
-      '#type' => 'hidden',
-      '#value' => $node->id(),
+    if (
+      $form_state->has('page_num') &&
+      $form_state->get('page_num') == 3
+    ) {
+
+      return $this->playersReservePageThree($form, $form_state);
+    }
+
+    // Set the form state page num, since if we arrive
+    // here it is the first page of the form.
+    $form_state->set('page_num', 1);
+
+    // The form wrapper.
+    $form['wrapper'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'class' => ['players-games-block'],
+      ],
     ];
 
-    // Submit buttons.
-    $form['actions']['#type'] = 'actions';
-    $form['actions']['submit'] = array(
+    $display_date = date('D M j, Y', strtotime($date));
+
+    // The form wrapper.
+    $form['wrapper']['title'] = [
+      '#markup' => '<h1>Reserve: ' . $display_date . '</h1>',
+    ];
+
+    // The date of the game.
+    $form['wrapper']['date'] = [
+      '#type' => 'hidden',
+      '#default_value' => $date,
+    ];
+
+    // The phone number element.
+    $form['wrapper']['phone'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Phone number'),
+      '#description' => $this->t('Enter your phone number, with no spaces or dashes, ex. 4165556666.'),
+      '#required' => TRUE,
+    ];
+
+    // Group submit handlers in an actions element with a key of "actions" so
+    // that it gets styled correctly, and so that other modules may add actions
+    // to the form. This is not required, but is convention.
+    $form['wrapper']['actions'] = [
+      '#type' => 'actions',
+    ];
+
+    $form['wrapper']['actions']['next'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Reserve'),
       '#button_type' => 'primary',
-    );
+      '#value' => $this->t('Next'),
+      '#submit' => ['::playersReserveNextSubmit'],
+      '#validate' => ['::playersReserveNextValidate'],
+    ];
 
     return $form;
   }
@@ -363,85 +177,404 @@ class PlayersReserveAddForm extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
 
+    $page_values = $form_state->get('page_values');
+
+    $this->messenger()->addMessage($this->t('The form has been submitted. name="@first @last", year of birth=@year_of_birth', [
+      '@first' => $page_values['first_name'],
+      '@last' => $page_values['last_name'],
+      '@year_of_birth' => $page_values['birth_year'],
+    ]));
+
+    $this->messenger()->addMessage($this->t('And the favorite color is @color', ['@color' => $form_state->getValue('color')]));
+  }
+
+  /**
+   * Provides custom validation handler for page 1.
+   *
+   * @param array $form
+   *   An associative array containing the structure of the form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current state of the form.
+   */
+  public function playersReserveNextValidate(
+    array &$form,
+    FormStateInterface $form_state
+  ) {
+
+    // Get the phone number from the form state.
+    $phone = $form_state->getValue('phone');
+
+    // Check that it is in the proper format.
+    if (
+      isset($form['phone']) &&
+      !preg_match('/^[0-9]{10}$/', $phone)
+    ) {
+
+      $form_state->setError(
+        $form['phone'],
+        $this->t('Phone number is not in proper format, please use just digits, ex. 4165556666.')
+      );
+    }
+  }
+
+  /**
+   * Provides custom submission handler for page 1.
+   *
+   * @param array $form
+   *   An associative array containing the structure of the form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current state of the form.
+   */
+  public function playersReserveNextSubmit(
+    array &$form,
+    FormStateInterface $form_state
+  ) {
+
     // Get the values from the form state.
     $values = $form_state->getValues();
 
-    // Get the nid and the reserve time.
-    $nid = $values['nid'];
-    $reserve_time = date('Y-m-d H:i:s');
+    // Set the values in the form state, setting
+    // the page number to the second step.
+    $form_state
+      ->set('page_values', [
+        'phone' => $values['phone'],
+        'date' => $values['date'],
+      ])
+      ->set('page_num', 2)
+      ->setRebuild(TRUE);
+  }
 
-    // Player is seated flag.
-    $player_is_seated = $values['seated'] ?? 0;
+  /**
+   * Builds the second step form (page 2).
+   *
+   * @param array $form
+   *   An associative array containing the structure of the form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current state of the form.
+   *
+   * @return array
+   *   The render array defining the elements of the form.
+   */
+  public function playersReservePageTwo(
+    array &$form,
+    FormStateInterface $form_state
+  ) {
 
-    // If the user is a floor then get the info from the
-    // values entered.
-    // If user is not floor then get values from user object.
-    if ($this->playersService->isFloor()) {
+    // Get the values from the form state.
+    $values = $form_state->getValues();
+    $page_values = $form_state->get('page_values');
 
-      // Get if the player is already a user.
-      $uid = $values['player_is_user'] == 'yes' ? $values['uid'] : NULL;
+    // Get the phone number from the form state.
+    $phone = $values['phone'];
 
-      // If the player is a user get their name from user object.
-      // If not get name from values entered.
-      if ($uid) {
+    // The query to get the info about the player.
+    $query = $this->database
+      ->select('user__field_user_phone', 'ufp')
+      ->fields('ufp', ['entity_id'])
+      ->condition('ufp.field_user_phone_local_number', $phone);
 
-        // Load the user from the uid supplied.
-        $user = $this->entityTypeManager->getStorage('user')->load($uid);
+    // Get the uid of the player.
+    $uid = $query->execute()->fetchAll();
 
-        // Get the first and last name from the user object.
-        $first_name = $user->field_user_first_name->value;
-        $last_name = $user->field_user_last_name->value;
-      }
-      else {
+    // Reset the user to null.
+    $user = NULL;
 
-        // Get the first and last name form the values entered.
-        $first_name = $values['first_name'];
-        $last_name = $values['last_name'];
-      }
+    // The wrapper for the form.
+    $form['wrapper'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'class' => ['players-games-block'],
+      ],
+    ];
+
+    $display_date = date('D M j, Y', strtotime($page_values['date']));
+
+    // The form wrapper.
+    $form['wrapper']['title'] = [
+      '#markup' => '<h1>Reserve: ' . $display_date . '</h1>',
+    ];
+
+    // If there is a user, set the form element,
+    // and load the user object.
+    if (count($uid) > 0) {
+      $form['wrapper']['uid'] = [
+        '#type' => 'hidden',
+        '#default_value' => $uid[0]->entity_id,
+      ];
+
+      $user = $this->entityTypeManager
+        ->getStorage('user')
+        ->load($uid[0]->entity_id);
+    }
+
+    // The form header for title.
+    $form['wrapper']['header'] = [
+      '#markup' => '<h2>Player Information</h2>',
+    ];
+
+    // The first name of the user.
+    $form['wrapper']['first_name'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('First name'),
+      '#default_value' => $user ? $user->field_user_first_name->value : NULL,
+      '#required' => TRUE,
+    ];
+
+    // The last name of the user.
+    $form['wrapper']['last_name'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Last name'),
+      '#default_value' => $user ? $user->field_user_last_name->value : NULL,
+      '#required' => TRUE,
+    ];
+
+    // The email of the user.
+    $form['wrapper']['email'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Email'),
+      '#default_value' => $user ? $user->mail->value : NULL,
+      '#required' => TRUE,
+    ];
+
+    // The form button to the next step in the form.
+    $form['wrapper']['actions']['next_page_two'] = [
+      '#type' => 'submit',
+      '#button_type' => 'primary',
+      '#value' => $this->t('Next'),
+      '#submit' => ['::playersReserveNextSubmitPageTwo'],
+      '#validate' => ['::playersReserveNextValidatePageTwo'],
+    ];
+
+    return $form;
+  }
+
+  /**
+   * Provides custom validation handler for page 2.
+   *
+   * @param array $form
+   *   An associative array containing the structure of the form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current state of the form.
+   */
+  public function playersReserveNextValidatePageTwo(
+    array &$form,
+    FormStateInterface $form_state
+  ) {
+
+    // Get the values from the form state.
+    $values = $form_state->getValues();
+
+    // Ensure that email is correct.
+    if (!filter_var($values['email'], FILTER_VALIDATE_EMAIL)) {
+      $form_state->setError(
+        $form['email'],
+        $this->t('Email is in invalid.')
+      );
+    }
+  }
+
+  /**
+   * Provides custom submission handler for page 2.
+   *
+   * @param array $form
+   *   An associative array containing the structure of the form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current state of the form.
+   */
+  public function playersReserveNextSubmitPageTwo(
+    array &$form,
+    FormStateInterface $form_state
+  ) {
+
+    // Get the values from the form state.
+    $values = $form_state->getValues();
+
+    // Get the page values, from previous page.
+    $page_values = $form_state->get('page_values');
+
+    // If there is a user id, set the updated values.
+    if (isset($values['uid']) && $values['uid'] !== '') {
+
+      // Load the user.
+      $user = $this->entityTypeManager
+        ->getStorage('user')
+        ->load($values['uid']);
+
+      // Set the user values.
+      $user->set('mail', $values['email']);
+      $user->set('field_user_first_name', $values['first_name']);
+      $user->set('field_user_last_name', $values['last_name']);
+
+      // Save the user.
+      $user->save();
+
+      // Get the uid from the values.
+      $uid = $values['uid'];
     }
     else {
 
-      // Get the current user.
-      $user = $this->playersService->getCurrentUser();
+      // Begin to create a user.
+      $user = User::create();
 
-      // Get the user id, first name and last name
-      // from the user object.
+      // Get the username based on the email address.
+      $username = explode('@', $values['email']);
+
+      // Set all the values of the user.
+      $user->setUsername($username[0]);
+      $user->setPassword(password_generate(12));
+      $user->enforceIsNew();
+      $user->setEmail($values['email']);
+      $user->set('field_user_last_name', $values['last_name']);
+      $user->set('field_user_first_name', $values['first_name']);
+
+      // Get the values required for the phone number.
+      $phone_number = [
+        'value' => $page_values['phone'],
+        'country' => 'CA',
+        'local_number' => $page_values['phone'],
+        'extension' => NULL,
+      ];
+
+      // Set the phone number.
+      $user->set('field_user_phone', $phone_number);
+
+      // Activate and save the user.
+      $user->activate();
+      $user->save();
+
+      // Get the uid from the newly created user.
       $uid = $user->id();
-      $first_name = $user->field_user_first_name->value;
-      $last_name = $user->field_user_last_name->value;
-
-      // Clear the user entries in the reserve.
-      $delete = $this->database->delete('players_reserve')
-        ->condition('nid', $values['nid'])
-        ->condition('uid', $user->id())
-        ->execute();
     }
 
-    // If there are tourney games at them to the reserve.
-    if (isset($values['tourney_games'])) {
+    // Set the values in the form state, setting
+    // the page number to the third step.
+    $form_state
+      ->set('page_values', [
+        'uid' => $uid,
+        'phone' => $page_values['phone'],
+        'first_name' => $values['first_name'],
+        'last_name' => $values['last_name'],
+        'date' => $page_values['date'],
+      ])
+      ->set('page_num', 3)
+      ->setRebuild(TRUE);
+  }
 
-      // Step through each of the game types and insert
-      // the details for the user/game.
-      foreach ($values['tourney_games'] as $game_type) {
+  /**
+   * Builds the second step form (page 3).
+   *
+   * @param array $form
+   *   An associative array containing the structure of the form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current state of the form.
+   *
+   * @return array
+   *   The render array defining the elements of the form.
+   */
+  public function playersReservePageThree(
+    array &$form,
+    FormStateInterface $form_state
+  ) {
 
-        // If there is a game selected, then add it
-        // to the reserve.
-        if ($game_type !== 0) {
-          $this->database
-            ->insert('players_reserve')
-            ->fields([
-              'uid' => $uid,
-              'nid' => $nid,
-              'first_name' => $first_name,
-              'last_name' => $last_name,
-              'game_type' => $game_type,
-              'reserve_time' => $reserve_time,
-              'seated' => $player_is_seated,
-            ])
-            ->execute();
-        }
+    // Get the values and page values from the form state.
+    $values = $form_state->getValues();
+    $page_values = $form_state->get('page_values');
+
+    // Get the node for the current game.
+    $node = current(
+      $this->entityTypeManager
+        ->getStorage('node')
+        ->loadByProperties(['title' => $page_values['date']])
+    );
+
+    // Load the games.
+    $games = $this->playersService->getGames($node, TRUE, $page_values['uid']);
+
+    // Reset the options and default values array.
+    $options = [];
+    $default_values = [];
+
+    // Step through each of the games and add the
+    // game title if the flag is set and get the
+    // options.
+    foreach ($games as $game) {
+
+      // Set the options.
+      $options[$game['title']] = $game['title'] . ': ' . $game['start_time'] . ' - ' . $game['end_time'];
+
+      // If the flag for the user as being reserved is
+      // set then add to the default values.
+      if ($game['reserved_flag']) {
+        $default_values[] = $game['title'];
       }
     }
+
+    // The wrapper for the form.
+    $form['wrapper'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'class' => ['players-games-block'],
+      ],
+    ];
+
+    // The node id.
+    $form['wrapper']['nid'] = [
+      '#type' => 'hidden',
+      '#default_value' => $node->id(),
+    ];
+
+    $display_date = date('D M j, Y', strtotime($page_values['date']));
+
+    // The form wrapper.
+    $form['wrapper']['title'] = [
+      '#markup' => '<h1>Reserve: ' . $display_date . '</h1>',
+    ];
+
+    // The games element for everything other than
+    // Friday nights.
+    $form['wrapper']['games'] = [
+      '#type' => 'checkboxes',
+      '#options' => $options,
+      '#title' => $this->t('Game types'),
+      '#default_value' => $default_values,
+    ];
+
+    // The submit button.
+    $form['wrapper']['actions']['submit'] = [
+      '#type' => 'submit',
+      '#button_type' => 'primary',
+      '#value' => $this->t('Reserve'),
+      '#submit' => ['::playersReserveSubmit'],
+    ];
+
+    return $form;
+  }
+
+  /**
+   * Provides custom submission handler for page 1.
+   *
+   * @param array $form
+   *   An associative array containing the structure of the form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current state of the form.
+   */
+  public function playersReserveSubmit(
+    array &$form,
+    FormStateInterface $form_state
+  ) {
+
+    // Set the reserve time.
+    $reserve_time = date('Y-m-d H:i:s');
+
+    // Get the values from the form state.
+    $values = $form_state->getValues();
+    $page_values = $form_state->get('page_values');
+
+    // Clear the user entries in the reserve.
+    $delete = $this->database->delete('players_reserve')
+      ->condition('nid', $values['nid'])
+      ->condition('uid', $page_values['uid'])
+      ->execute();
 
     // Need to check if we are using multiple selections or not.
     if (is_array($values['games'])) {
@@ -456,46 +589,21 @@ class PlayersReserveAddForm extends FormBase {
           $this->database
             ->insert('players_reserve')
             ->fields([
-              'uid' => $uid,
-              'nid' => $nid,
-              'first_name' => $first_name,
-              'last_name' => $last_name,
+              'uid' => $page_values['uid'],
+              'nid' => $values['nid'],
+              'first_name' => $page_values['first_name'],
+              'last_name' => $page_values['last_name'],
               'game_type' => $game_type,
               'reserve_time' => $reserve_time,
-              'seated' => $player_is_seated,
+              'seated' => 0,
             ])
             ->execute();
         }
       }
     }
-    else {
 
-      // If there is a game selected, then add it
-      // to the reserve.
-      if ($values['games'] !== 0) {
-        $this->database
-          ->insert('players_reserve')
-          ->fields([
-            'uid' => $uid,
-            'nid' => $nid,
-            'first_name' => $first_name,
-            'last_name' => $last_name,
-            'game_type' => $values['games'],
-            'reserve_time' => $reserve_time,
-            'seated' => $player_is_seated,
-          ])
-          ->execute();
-      }
-    }
-
-    if ($this->playersService->isFloor()) {
-      $this->messenger->addStatus('This player has been added to the reserve.');
-    }
-    else {
-      $this->messenger->addStatus('Your reserve has been added/updated.');
-    }
-
-//    drupal_flush_all_caches();
+    // Add the message.
+    $this->messenger->addStatus($this->t('You reservation has been successfully updated.'));
 
     $form_state->setRedirect('players_reserve.reserve');
   }
