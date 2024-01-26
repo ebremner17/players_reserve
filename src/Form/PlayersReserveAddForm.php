@@ -488,7 +488,7 @@ class PlayersReserveAddForm extends FormBase {
     );
 
     // Load the games.
-    $games = $this->playersService->getGames($node, TRUE, $page_values['uid']);
+    $games = $this->playersService->getGames($node, FALSE, $page_values['uid']);
 
     // Reset the options and default values array.
     $options = [];
