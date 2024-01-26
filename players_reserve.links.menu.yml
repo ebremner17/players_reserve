@@ -1,0 +1,5 @@
+players_cfg.floor:
+  title: 'Floor'
+  menu_name: main
+  url: internal:/floor
+  weight: 1

@@ -5,12 +5,17 @@
  */
 namespace Drupal\players_reserve\Form;
 
+use Drupal\Core\Access\AccessResult;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Url;
 use Drupal\players_reserve\Service\PlayersService;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Database\Connection;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class PlayersReserveFloorAddForm extends FormBase {
 
@@ -36,22 +41,33 @@ class PlayersReserveFloorAddForm extends FormBase {
   protected $database;
 
   /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
    * @param \Drupal\players_reserve\Service\PlayersService $playersService
    *  The players service.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    *   The messenger.
    * @param \Drupal\Core\Database\Connection $database
    *   The database
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   *   The entity type manager.
    */
   public function __construct(
     PlayersService $playersService,
     MessengerInterface $messenger,
-    Connection $database
+    Connection $database,
+    EntityTypeManagerInterface $entityTypeManager
   ) {
 
     $this->playersService = $playersService;
     $this->messenger = $messenger;
     $this->database = $database;
+    $this->entityTypeManager = $entityTypeManager;
   }
 
   /**
@@ -59,12 +75,11 @@ class PlayersReserveFloorAddForm extends FormBase {
    */
   public static function create(ContainerInterface $container) {
 
-    // Instantiates this form class.
     return new static(
-    // Load the service required to construct this class.
       $container->get('players_reserve.players_service'),
       $container->get('messenger'),
-      $container->get('database')
+      $container->get('database'),
+      $container->get('entity_type.manager')
     );
   }
 
@@ -72,419 +87,409 @@ class PlayersReserveFloorAddForm extends FormBase {
    * {@inheritdoc}
    */
   public function getFormId() {
-    return 'players_add_reserve_form';
+    return 'players_floor_add_player_form';
   }
 
+  /**
+   * Build the form.
+   *
+   * @param array $form
+   *   The form.
+   * @param FormStateInterface $form_state
+   *   The form state.
+   * @param string $date
+   *   The date to add a player too.
+   *
+   * @return array
+   *   Array of form elements.
+   */
   public function buildForm(
     array $form,
     FormStateInterface $form_state,
-    $nid = NULL,
-    $game_type = NULL
+    string $date = NULL
   ) {
 
-    // Get the list of players.
-    $list = $this->playersService->getList($nid, $game_type);
+    // Get the node based on the current date.
+    $node = $this->playersService->getGameNodeByDate($date);
 
-    // If there is no list, then add message about no
-    // players reserved.
-    // If there is a list, then get the list.
-    if (!$list) {
-      $form['list'][$game_type] = [
-        '#type' => 'markup',
-        '#markup' => 'There are currently no players reserved for this game.'
-      ];
+    // If there is node, get the info about the games.
+    if ($node) {
 
-      // Get the url and date, not it can be reserve.
-      $url = explode('/', \Drupal::request()->getRequestUri());
-      $url_date = end($url);
+      // Get the current user.
+      $user = $this->playersService->getCurrentUser();
 
-      // Get the corrected date.
-      $date = $this->playersService->getCorrectDate();
+      // Set the user status to false,
+      // change only if logged in and not
+      // registered for the games.
+      $games['status'] = FALSE;
 
-      $this->getCurrentListForm($form, $url_date, $date, $nid, $game_type);
+      if (!$user->isAuthenticated()) {
+        $this->messenger()->addError('You must be logged in or registered with Players Inc to reserve a game.');
+        return [];
+      }
+    }
+    else {
+      $this->messenger()->addError('The are currently no games schedule for this date.');
+      return [];
+    }
+
+    // Get the games.
+    $games['games'] = $this->playersService->getGames($node);
+
+    // If there are no games, meaning that we are on the wrong
+    // date for a regular users, then return to the reserve page.
+    // This can only happen when a user manually change the link
+    // in the browser.
+    if (empty($games['games'])) {
+      $url = Url::fromUri('internal:/floor')->toString();
+      $response = new RedirectResponse($url);
+      $response->send();
+      return;
+    }
+
+    $form['#prefix'] = '<div class="players-contained-width">';
+    $form['#suffix'] = '</div>';
+
+    // Get the display date.
+    $form['display_date'] = [
+      '#markup' => '<h3>' . date('l F j, Y', strtotime($date)) . '</h3>',
+    ];
+
+    // Get the options for the type of games.
+    foreach ($games['games'] as $game) {
+      $options[$game['title']] = $game['title'] . ': ' . $game['start_time'] . ' - ' . $game['end_time'];
+    }
+
+    // Choose if player is a user on the website.
+    $form['player_is_user'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Is player a user of the website?'),
+      '#options' => [
+        '' => '-- Select --',
+        'yes' => 'Yes',
+        'no' => 'No',
+      ],
+    ];
+
+    // Fieldset for the player uid.
+    $form['player_uid'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('User'),
+      '#states' => [
+        'visible' => [
+          ':input[name="player_is_user"]' => ['value' => 'yes'],
+        ],
+      ],
+    ];
+
+    // The player uid, using autocomplete.
+    $form['player_uid']['uid'] = [
+      '#type' => 'entity_autocomplete',
+      '#title' => $this->t('User names'),
+      '#target_type' => 'user',
+    ];
+
+    // Fieldset for the player info, if they are not
+    // a registered user.
+    $form['player_info'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Player Info'),
+      '#states' => [
+        'visible' => [
+          ':input[name="player_is_user"]' => ['value' => 'no'],
+        ],
+      ],
+    ];
+
+    // The player first name.
+    $form['player_info']['first_name'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('First Name'),
+    ];
+
+    // The player last name.
+    $form['player_info']['last_name'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Last Name'),
+    ];
+
+    $form['player_seated'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Seated'),
+      '#states' => [
+        'invisible' => [
+          ':input[name="uid"]' => ['value' => ''],
+          'or',
+          ':input[name="first_name"]' => ['value' => ''],
+          'or',
+          ':input[name="last_name"]' => ['value' => ''],
+        ],
+      ],
+    ];
+
+    // The player is seated for element.
+    $form['player_seated']['seated'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Player is seated'),
+    ];
+
+    // Array to store the default values for the games.
+    $default_values = [];
+
+    // The Saturday dates that are exempt from the radio
+    // buttons, doenst happen often.
+    $saturday_exempt_dates = [
+      '2022-12-30',
+    ];
+
+    // Need to allow for only single selections for players
+    // on Saturdays.
+    if (
+      count($options) > 1 &&
+      date("l", strtotime($date)) == "Saturday" &&
+      !in_array(date("Y-m-d", strtotime($date)), $saturday_exempt_dates) &&
+      !$this->playersService->isFloor()
+    ) {
+
+      $tourney_options = [];
+      $cash_options = [];
+      $default_values_tourney = [];
+      $default_values_cash = [];
+
+      foreach ($options as $index => $option) {
+        if (str_starts_with($index, 'Tournament')) {
+          $tourney_options[$index] = $option;
+        }
+        else {
+          $cash_options[$index] = $option;
+        }
+      }
+
+      // Step through each of the games and add the
+      // game title if the flag is set.
+      foreach ($games['games'] as $game) {
+
+
+        // If the flag for the user as being reserved is
+        // set then add to the default values.
+        if ($game['reserved_flag']) {
+          if (str_starts_with($game['title'], 'Tournament')){
+            $default_values_tourney[] = $game['title'];
+          }
+          else {
+            $default_values_cash = $game['title'];
+          }
+        }
+      }
+
+      if (!empty($tourney_options)) {
+        $form['tourney_games'] = [
+          '#type' => 'checkboxes',
+          '#options' => $tourney_options,
+          '#title' => $this->t('Tournament(s)'),
+          '#required' => $this->playersService->isFloor() ? TRUE : FALSE,
+          '#default_value' => $default_values_tourney,
+        ];
+      }
+
+      if (!empty($cash_options)) {
+
+        // The games element for Saturday nights.
+        $form['games'] = [
+          '#type' => 'radios',
+          '#options' => $cash_options,
+          '#title' => $this->t('Cash Game(s)'),
+          '#required' => $this->playersService->isFloor() ? TRUE : FALSE,
+          '#default_value' => $default_values_cash,
+        ];
+      }
     }
     else {
 
-      // The type of game, hidden so we can use it
-      // in the submit.
-      $form['game_type'] = [
-        '#type' => 'hidden',
-        '#value' => $game_type,
-      ];
+      // Step through each of the games and add the
+      // game title if the flag is set.
+      foreach ($games['games'] as $game) {
 
-      // The nid, hidden so we can use it
-      // in the submit.
-      $form['nid'] = [
-        '#type' => 'hidden',
-        '#value' => $nid,
-      ];
-
-      // The header for the table.
-      $header = [
-        ['data' => t('First Name')],
-        ['data' => t('Last Name')],
-        ['data' => t('Reserve Time')],
-        ['data' => t('Options')],
-      ];
-
-      // The table for the list.
-      $form['list'] = [
-        '#type' => 'table',
-        '#title' => 'Sample Table',
-        '#header' => $header,
-      ];
-
-      // Count for the number of players.
-      $count = 0;
-
-      // Step through and add players to list.
-      foreach ($list as $player) {
-
-        // Player first name.
-        $form['list'][$count]['first_name'] = [
-          '#type' => 'markup',
-          '#markup' => $player->first_name,
-        ];
-
-        // Player last name.
-        $form['list'][$count]['last_name'] = [
-          '#type' => 'markup',
-          '#markup' => $player->last_name,
-        ];
-
-        // Player last name.
-        $form['list'][$count]['reserve_time'] = [
-          '#type' => 'markup',
-          '#markup' => date('g:i a (M d)', strtotime($player->reserve_time)),
-        ];
-
-        // The fieldset for the options.
-        $form['list'][$count]['options'] = [
-          '#type' => 'container',
-        ];
-
-        // The seated checkbox.
-        $form['list'][$count]['options']['seated'] = [
-          '#type' => 'checkbox',
-          '#title' => $this->t('Seated'),
-        ];
-
-        // The remove checkbox.
-        $form['list'][$count]['options']['remove'] = [
-          '#type' => 'checkbox',
-          '#title' => $this->t('Remove'),
-        ];
-
-        // The reserve id, this is needed so we can reference
-        // the entry in the DB.
-        $form['list'][$count]['options']['reserve_id'] = [
-          '#type' => 'hidden',
-          '#value' => $player->reserve_id,
-        ];
-
-        // Increment the counter.
-        $count++;
+        // If the flag for the user as being reserved is
+        // set then add to the default values.
+        if ($game['reserved_flag']) {
+          $default_values[] = $game['title'];
+        }
       }
 
-      // Get the url and date, not it can be reserve.
-      $url = explode('/', \Drupal::request()->getRequestUri());
-      $url_date = end($url);
-
-      // Get the corrected date.
-      $date = $this->playersService->getCorrectDate();
-
-      $this->getCurrentListForm($form, $url_date, $date, $nid, $game_type);
+      // The games element for everything other than
+      // Friday nights.
+      $form['games'] = [
+        '#type' => 'checkboxes',
+        '#options' => $options,
+        '#title' => $this->t('Game types'),
+        '#required' => $this->playersService->isFloor() ? TRUE : FALSE,
+        '#default_value' => $default_values,
+      ];
     }
 
-    // Show submit button flag.
-    $show_submit_button = FALSE;
+    // Hidden value for the nid.
+    $form['nid'] = [
+      '#type' => 'hidden',
+      '#value' => $node->id(),
+    ];
 
-    // If there is a list, set the show submit button flag.
-    if (count($list) > 0) {
-      $show_submit_button = TRUE;
-    }
-
-    // If there is a current list, set the show submit
-    // button flag.
-    if (
-      isset($form['current_list']['clist']) &&
-      array_key_exists(0, $form['current_list']['clist'])
-    ) {
-      $show_submit_button = TRUE;
-    }
-
-    // Only add submit button if there is a list.
-    if ($show_submit_button) {
-
-      // The submit button.
-      $form['actions']['#type'] = 'actions';
-      $form['actions']['submit'] = array(
-        '#type' => 'submit',
-        '#value' => $this->t('Submit'),
-        '#button_type' => 'primary',
-      );
-    }
+    // Submit buttons.
+    $form['actions']['#type'] = 'actions';
+    $form['actions']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => $this->t('Reserve'),
+      '#button_type' => 'primary',
+    );
 
     return $form;
   }
 
   /**
-   * Function to get the current list.
+   * Submit form.
    *
-   * @param array &$form
+   * @param array $form
    *   The form.
-   * @param string $url_date
-   *   The url date.
-   * @param string $date
-   *   The current date.
-   * @param int $nid
-   *   The node id.
-   * @param string $game_type
-   *   The type of game.
+   * @param FormStateInterface $form_state
+   *   The form state.
    */
-  private function getCurrentListForm(
-    array &$form,
-    string $url_date,
-    string $date,
-    int $nid,
-    string $game_type
-  ) {
-
-    // Set the current list.
-    $current_list = [];
-
-    // If we are on todays date or just /reserve,
-    // get the list of current players.
-    if ($url_date == 'reserve' || $url_date == $date) {
-      $current_list = $this->playersService->getCurrentList($nid, $game_type);
-    }
-
-    // If there is a list of current players, get the
-    // form element for it.
-    if (count($current_list) > 0) {
-
-      // Set the details.
-      $form['current_list'] = [
-        '#type' => 'markup',
-        '#markup' => '<details class="players-details" data-once="details" open="true">',
-        '#prefix' => '<p>',
-        '#suffix' => '</details></p>',
-      ];
-
-      // Set the summary.
-      $form['current_list']['summary'] = [
-        '#type' => 'markup',
-        '#markup' => ' <summary class="players-summary" aria-expanded="true" aria-pressed="true">Seated players<span class="summary"></span></summary>',
-      ];
-
-      // The header for the table.
-      $header = [
-        t('First Name'),
-        t('Last Name'),
-        t('Seated/Left')
-      ];
-
-      // The table for the list.
-      $form['current_list']['clist'] = [
-        '#type' => 'table',
-        '#title' => 'Current list',
-        '#header' => $header,
-        '#prefix' => '<p>',
-        '#suffix' => '</p>',
-      ];
-
-      // The counter for the table.
-      $count = 0;
-
-      // Set the player left flag.
-      $player_left_flag = FALSE;
-
-      // Step through and add players to list.
-      foreach ($current_list as $player) {
-
-        // If this players has left and the flag is not set,
-        // then add a blank row for display.
-        if ($player->pleft && !$player_left_flag) {
-
-          // Reset the rows array.
-          $rows = [];
-
-          // Add the row with blank and the class.
-          for ($i = 0; $i < 3; $i++) {
-            $rows[] = [
-              'data' => [
-                '#type' => 'markup',
-                '#markup' => '',
-              ],
-              '#wrapper_attributes' => [
-                'class' => ['players-reserve__black'],
-              ],
-            ];
-          }
-
-          // Add the rows to the list.
-          $form['current_list']['clist'][$count] = $rows;
-
-          // Set the player left flag.
-          $player_left_flag = TRUE;
-
-          // Increment the counter.
-          $count++;
-        }
-
-
-        // Player first name.
-        $form['current_list']['clist'][$count]['first_name'] = [
-          '#type' => 'markup',
-          '#markup' => $player->first_name,
-        ];
-
-        // Player last name.
-        $form['current_list']['clist'][$count]['last_name'] = [
-          '#type' => 'markup',
-          '#markup' => $player->last_name,
-        ];
-
-        // The list of options.
-        $form['current_list']['clist'][$count]['options'] = [
-          '#type' => 'container',
-        ];
-
-        // Get the default value for the seated/left.
-        $default_value = NULL;
-        if ($player->seated) {
-          $default_value = 'seated';
-        }
-        if ($player->pleft) {
-          $default_value = 'left';
-        }
-
-        // The seated/left element.
-        $form['current_list']['clist'][$count]['options']['seated-left'] = [
-          '#type' => 'radios',
-          '#options' => [
-            'seated' => $this->t('Seated'),
-            'left' => $this->t('Left'),
-          ],
-          '#default_value' => $default_value,
-        ];
-
-        // The reserve id element.
-        $form['current_list']['clist'][$count]['options']['reserve_id'] = [
-          '#type' => 'hidden',
-          '#default_value' => $player->reserve_id,
-        ];
-
-        // Increment the counter.
-        $count++;
-      }
-    }
-  }
-
   public function submitForm(array &$form, FormStateInterface $form_state) {
 
     // Get the values from the form state.
     $values = $form_state->getValues();
 
-    // If ther is a list process it.
-    if (isset($values['list']) && count($values['list']) > 0) {
+    // Get the nid and the reserve time.
+    $nid = $values['nid'];
+    $reserve_time = date('Y-m-d H:i:s');
 
-      // Get the list from the form state.
-      $list = $values['list'];
+    // Player is seated flag.
+    $player_is_seated = $values['seated'] ?? 0;
 
-      // Get the list using the players service.
-      $old_list = $this->playersService->getList($values['nid'], $values['game_type']);
+    // Get if the player is already a user.
+    $uid = $values['player_is_user'] == 'yes' ? $values['uid'] : NULL;
 
-      // Counter for the number of players.
-      $count = 0;
+    // If the player is a user get their name from user object.
+    // If not get name from values entered.
+    if ($uid) {
 
-      // Step through the list and update any players info.
-      foreach ($list as $player) {
+      // Load the user from the uid supplied.
+      $user = $this->entityTypeManager->getStorage('user')->load($uid);
 
-        // If the player is marked as seated or removed, update the DB.
-        if (
-          (
-            isset($player['options']['seated']) &&
-            $player['options']['seated']
-          ) ||
-          (
-            isset($player['options']['remove']) &&
-            $player['options']['remove']
-          )
-        ) {
+      // Get the first and last name from the user object.
+      $first_name = $user->field_user_first_name->value;
+      $last_name = $user->field_user_last_name->value;
+    }
+    else {
 
-          // Start the query.
-          $query = $this->database->update('players_reserve');
+      // Get the first and last name form the values entered.
+      $first_name = $values['first_name'];
+      $last_name = $values['last_name'];
+    }
 
-          // Add the field to query based on the selection.
-          if ($player['options']['seated']) {
-            $query->fields([
-              'seated' => 1,
-            ]);
-            $status = 'seated';
-          } else {
-            $query->fields([
-              'removed' => 1,
-            ]);
-            $status = 'removed';
-          }
+    // If there are tourney games at them to the reserve.
+    if (isset($values['tourney_games'])) {
 
-          // Add the reserve id to the query.
-          $query->condition('reserve_id', $player['options']['reserve_id']);
+      // Step through each of the game types and insert
+      // the details for the user/game.
+      foreach ($values['tourney_games'] as $game_type) {
 
-          // Execute the query.
-          $query->execute();
-
-          // Get the player info from the old list.
-          $player_info = $old_list[$count];
-
-          // Get the player name.
-          $player_name = $player_info->first_name . ' ' . $player_info->last_name;
-
-          // Add the message.
-          $this->messenger->addStatus($this->t('The player(s) has been marked as @status', ['@status' => $status]));
-
-          // Increment the counter.
-          $count++;
+        // If there is a game selected, then add it
+        // to the reserve.
+        if ($game_type !== 0) {
+          $this->database
+            ->insert('players_reserve')
+            ->fields([
+              'uid' => $uid,
+              'nid' => $nid,
+              'first_name' => $first_name,
+              'last_name' => $last_name,
+              'game_type' => $game_type,
+              'reserve_time' => $reserve_time,
+              'seated' => $player_is_seated,
+            ])
+            ->execute();
         }
       }
     }
 
-    // If there is a current list, update it.
-    if (isset($values['clist']) && count($values['clist']) > 0) {
+    // Need to check if we are using multiple selections or not.
+    if (is_array($values['games'])) {
 
-      // Step through each of the current list and update it.
-      foreach ($values['clist'] as $clist) {
+      // Step through each of the game types and insert
+      // the details for the user/game.
+      foreach ($values['games'] as $game_type) {
 
-        // Start the query.
-        $query = $this->database->update('players_reserve');
-
-        // Add the field to query based on the selection.
-        if ($clist['options']['seated-left'] == 'seated') {
-          $query->fields([
-            'seated' => 1,
-            'pleft' => 0,
-          ]);
+        // If there is a game selected, then add it
+        // to the reserve.
+        if ($game_type !== 0) {
+          $this->database
+            ->insert('players_reserve')
+            ->fields([
+              'uid' => $uid,
+              'nid' => $nid,
+              'first_name' => $first_name,
+              'last_name' => $last_name,
+              'game_type' => $game_type,
+              'reserve_time' => $reserve_time,
+              'seated' => $player_is_seated,
+            ])
+            ->execute();
         }
-        else {
-          $query->fields([
-            'seated' => 0,
-            'pleft' => 1,
-          ]);
-        }
-
-        // Add the reserve id to the query.
-        $query->condition('reserve_id', $clist['options']['reserve_id']);
-
-        // Execute the query.
-        $query->execute();
       }
+    }
+    else {
 
-      // Add the message.
-      $this->messenger->addStatus($this->t('The current list has been updated'));
+      // If there is a game selected, then add it
+      // to the reserve.
+      if ($values['games'] !== 0) {
+        $this->database
+          ->insert('players_reserve')
+          ->fields([
+            'uid' => $uid,
+            'nid' => $nid,
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'game_type' => $values['games'],
+            'reserve_time' => $reserve_time,
+            'seated' => $player_is_seated,
+          ])
+          ->execute();
+      }
     }
 
-//    drupal_flush_all_caches();
+    // Add the message about successully adding the player.
+    $this->messenger->addStatus('This player has been added to the reserve.');
+
+    // Get the node and the date.
+    $node = $this->entityTypeManager
+      ->getStorage('node')
+      ->load($nid);
+    $date = $node->label();
+
+    $form_state->setRedirect('players_reserve.floor_date', ['date' => $date]);
+  }
+
+  /**
+   * Checks access to the block add page for the block type.
+   */
+  public function access(AccountInterface $account) {
+
+    // Get the user roles.
+    $roles = $account->getRoles();
+
+    // The list of allowed roles for the route.
+    $allowed_roles = [
+      'administrator',
+      'floor',
+    ];
+
+    // Return access if user has correct role.
+    if(array_intersect($roles, $allowed_roles)) {
+      return AccessResult::allowed();
+    }
+    else {
+      return AccessResult::forbidden();
+    }
   }
 
 }

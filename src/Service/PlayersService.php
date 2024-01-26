@@ -281,6 +281,7 @@ class PlayersService  {
           'list' => $list,
           'reserved_flag' => $reserved_flag,
           'reserves' => $reserves ?? NULL,
+          'display_date' => date('l M j, Y', strtotime($current_date)),
         ];
       }
     }
@@ -481,7 +482,10 @@ class PlayersService  {
    * @return array
    *   Array of current players.
    */
-  public function getCurrentList(int $nid, string $game_type) {
+  public function getCurrentList(
+    int $nid,
+    string $game_type
+  ) {
 
     $condition_or = new \Drupal\Core\Database\Query\Condition ('OR');
 
@@ -506,7 +510,12 @@ class PlayersService  {
   /**
    * {@inheritDoc}
    */
-  public function prepareResponsiveImage(?Media $entity, string $image_style, string $field_name, bool $absolute_url = FALSE): array {
+  public function prepareResponsiveImage(
+    ?Media $entity,
+    string $image_style,
+    string $field_name,
+    bool $absolute_url = FALSE
+  ): array {
 
     // Ensure that we can load an entity on the media.
     if ($entity && isset($entity->$field_name->entity)) {
