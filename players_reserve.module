@@ -1,5 +1,7 @@
 <?php
 
+use Drupal\Core\Form\FormStateInterface;
+
 /**
  * Implements hook_theme().
  */
@@ -39,14 +41,73 @@ function players_reserve_menu() {
 /**
  * Implements hook_form_BASE_FORM_ID_alter().
  */
-function players_reserve_form_node_form_alter(&$form, &$form_state, $form_id) {
-  $field_name = 'field_users'; // Change this to your user reference field's machine name.
-  if (!isset($form[$field_name])) { return; }
-  // Attach a custom autocomplete path to our user's field so we can search
+function players_reserve_form_node_form_alter(
+  &$form,
+  &$form_state,
+  $form_id
+) {
+
+  // Add the form validate to check for dates, if this
+  // a games node.
+  if ($form_id == 'node_pi_ct_games_form') {
+    $form['#validate'][] = '_players_reserve_node_form_validate';
+  }
+
+  $field_name = 'field_users';
+
+  // Change this to your user reference field's machine name.
+  if (!isset($form[$field_name])) {
+    return;
+  }
+
+  // Attach a custom autocomplete path to our user's field, so we can search
   // by address field first and last names.
   foreach($form[$field_name]['und'] as $delta => $element) {
-    if (!is_numeric($delta)) { continue; }
+
+    if (!is_numeric($delta)) {
+      continue;
+    }
+
     $form[$field_name]['und'][$delta]['target_id']['#autocomplete_path'] = 'players_reserve/autocomplete';
+  }
+}
+
+/**
+ * Helper function to ensure that there are no multiple game nodes.
+ *
+ * @param $form
+ *   The form.
+ * @param FormStateInterface $form_state
+ *   The form state.
+ */
+function _players_reserve_node_form_validate(
+  $form,
+  FormStateInterface $form_state
+) {
+
+  // Get the gmae date from the form state.
+  $game_date = $form_state->getValue('field_game_date');
+
+  // Get the value in a date format that we can
+  // check if there are games with those dates.
+  $date = $game_date[0]['value']->format('Y-m-d');
+
+  // Get the query object.
+  $query = \Drupal::entityTypeManager()
+    ->getStorage('node')
+    ->getQuery();
+
+  // Get the possible nids that have the same date.
+  $nids = $query->condition('title', $date)
+    ->execute();
+
+  // If there are nids with the same date, then set
+  // the error.
+  if (count($nids) > 0) {
+    $form_state->setError(
+      $form['field_game_date']['widget'],
+      t('There is already a game with this date.')
+    );
   }
 }
 
