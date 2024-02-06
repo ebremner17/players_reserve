@@ -5,6 +5,8 @@ players_reserve.reserve_date:
     _title: 'Players Inc. Reserve'
   requirements:
     _permission: 'access content'
+  options:
+    no_cache: 'TRUE'
 players_reserve.reserve:
   path: '/reserve'
   defaults:
