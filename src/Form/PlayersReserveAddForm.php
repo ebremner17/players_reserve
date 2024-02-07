@@ -267,14 +267,25 @@ class PlayersReserveAddForm extends FormBase {
     // Get the phone number from the form state.
     $phone = $values['phone'];
 
-    // The query to get the info about the player.
-    $query = $this->database
-      ->select('user__field_user_phone', 'ufp')
-      ->fields('ufp', ['entity_id'])
-      ->condition('ufp.field_user_phone_local_number', $phone);
+    // For some reason this phone number will not be
+    // found, so specifying the uid. Otherwise, get
+    // the user based on the phone number.
+    if ($phone == '4164559575') {
+      $uid = 997;
+    }
+    else {
 
-    // Get the uid of the player.
-    $uid = $query->execute()->fetchAll();
+      // The query to get the info about the player.
+      $query = $this->database
+        ->select('user__field_user_phone', 'ufp')
+        ->fields('ufp', ['entity_id'])
+        ->condition('ufp.field_user_phone_local_number', $phone);
+
+      // Get the uid of the player.
+      $uid = $query->execute()->fetchAll();
+
+      $uid = $uid[0]->entity_id;
+    }
 
     // Reset the user to null.
     $user = NULL;
@@ -296,7 +307,7 @@ class PlayersReserveAddForm extends FormBase {
 
     // If there is a user, set the form element,
     // and load the user object.
-    if (count($uid) > 0) {
+    if ($uid) {
       $form['wrapper']['uid'] = [
         '#type' => 'hidden',
         '#default_value' => $uid[0]->entity_id,
@@ -304,7 +315,7 @@ class PlayersReserveAddForm extends FormBase {
 
       $user = $this->entityTypeManager
         ->getStorage('user')
-        ->load($uid[0]->entity_id);
+        ->load($uid);
     }
 
     // The form header for title.
