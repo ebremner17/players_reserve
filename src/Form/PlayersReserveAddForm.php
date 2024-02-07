@@ -310,7 +310,7 @@ class PlayersReserveAddForm extends FormBase {
     if ($uid) {
       $form['wrapper']['uid'] = [
         '#type' => 'hidden',
-        '#default_value' => $uid[0]->entity_id,
+        '#default_value' => $uid,
       ];
 
       $user = $this->entityTypeManager
