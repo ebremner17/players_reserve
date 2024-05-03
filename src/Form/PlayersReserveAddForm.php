@@ -406,18 +406,18 @@ class PlayersReserveAddForm extends FormBase {
     // If there is a user id, set the updated values.
     if (isset($values['uid']) && $values['uid'] !== '') {
 
-      // Load the user.
-      $user = $this->entityTypeManager
-        ->getStorage('user')
-        ->load($values['uid']);
-
-      // Set the user values.
-      $user->set('mail', $values['email']);
-      $user->set('field_user_first_name', $values['first_name']);
-      $user->set('field_user_last_name', $values['last_name']);
-
-      // Save the user.
-      $user->save();
+//      // Load the user.
+//      $user = $this->entityTypeManager
+//        ->getStorage('user')
+//        ->load($values['uid']);
+//
+//      // Set the user values.
+//      $user->set('mail', $values['email']);
+//      $user->set('field_user_first_name', $values['first_name']);
+//      $user->set('field_user_last_name', $values['last_name']);
+//
+//      // Save the user.
+//      $user->save();
 
       // Get the uid from the values.
       $uid = $values['uid'];
