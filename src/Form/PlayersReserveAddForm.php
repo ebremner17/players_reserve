@@ -277,7 +277,8 @@ class PlayersReserveAddForm extends FormBase
     if ($phone == '4164559575') {
       $uid = 997;
       $page_values['uid'] = 997;
-    } else {
+    }
+    else {
 
       // The query to get the info about the player.
       $query = $this->database
@@ -288,7 +289,12 @@ class PlayersReserveAddForm extends FormBase
       // Get the uid of the player.
       $uid = $query->execute()->fetchAll();
 
-      $uid = $uid[0]->entity_id;
+      if (count($uid) > 0) {
+        $uid = $uid[0]->entity_id;
+      }
+      else {
+        $uid = NULL;
+      }
       $page_values['uid'] = $uid;
     }
 
@@ -550,6 +556,18 @@ class PlayersReserveAddForm extends FormBase
       $user->set('field_user_first_name', $values['first_name']);
       $user->setUsername($username[0]);
       $user->activate();
+
+      // Get the values required for the phone number.
+      $phone_number = [
+        'value' => $page_values['phone'],
+        'country' => 'CA',
+        'local_number' => $page_values['phone'],
+        'extension' => NULL,
+      ];
+
+      // Set the phone number.
+      $user->set('field_user_phone', $phone_number);
+
       $uid = $user->save();
     } // Get the uid from the values.
     else {
