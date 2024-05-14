@@ -17,7 +17,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Database\Connection;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
-class PlayersReserveAddForm extends FormBase {
+class PlayersReserveAddForm extends FormBase
+{
 
   /**
    * The entity type manager.
@@ -59,10 +60,11 @@ class PlayersReserveAddForm extends FormBase {
    */
   public function __construct(
     EntityTypeManagerInterface $entityTypeManager,
-    Connection $database,
-    PlayersService $playersService,
-    MessengerInterface $messenger
-  ) {
+    Connection                 $database,
+    PlayersService             $playersService,
+    MessengerInterface         $messenger
+  )
+  {
 
     $this->entityTypeManager = $entityTypeManager;
     $this->database = $database;
@@ -73,7 +75,8 @@ class PlayersReserveAddForm extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container) {
+  public static function create(ContainerInterface $container)
+  {
 
     // Instantiates this form class.
     return new static(
@@ -87,7 +90,8 @@ class PlayersReserveAddForm extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public function getFormId() {
+  public function getFormId()
+  {
     return 'players_reserve_add_form';
   }
 
@@ -95,10 +99,11 @@ class PlayersReserveAddForm extends FormBase {
    * {@inheritdoc}
    */
   public function buildForm(
-    array $form,
+    array              $form,
     FormStateInterface $form_state,
-    $date = NULL
-  ) {
+                       $date = NULL
+  )
+  {
 
     // If the date is incorrect then redirect back to the reserve.
     if (!preg_match('/202[4-9]{1}[-][0-9]{1}[1-9]{1}-[0-3]{1}[0-9]{1}/', $date)) {
@@ -111,14 +116,6 @@ class PlayersReserveAddForm extends FormBase {
     ) {
 
       return $this->playersReservePageTwo($form, $form_state);
-    }
-
-    if (
-      $form_state->has('page_num') &&
-      $form_state->get('page_num') == 3
-    ) {
-
-      return $this->playersReservePageThree($form, $form_state);
     }
 
     // Set the form state page num, since if we arrive
@@ -175,7 +172,8 @@ class PlayersReserveAddForm extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public function submitForm(array &$form, FormStateInterface $form_state) {
+  public function submitForm(array &$form, FormStateInterface $form_state)
+  {
 
     $page_values = $form_state->get('page_values');
 
@@ -197,9 +195,10 @@ class PlayersReserveAddForm extends FormBase {
    *   The current state of the form.
    */
   public function playersReserveNextValidate(
-    array &$form,
+    array              &$form,
     FormStateInterface $form_state
-  ) {
+  )
+  {
 
     // Get the phone number from the form state.
     $phone = $form_state->getValue('phone');
@@ -226,9 +225,10 @@ class PlayersReserveAddForm extends FormBase {
    *   The current state of the form.
    */
   public function playersReserveNextSubmit(
-    array &$form,
+    array              &$form,
     FormStateInterface $form_state
-  ) {
+  )
+  {
 
     // Get the values from the form state.
     $values = $form_state->getValues();
@@ -256,13 +256,17 @@ class PlayersReserveAddForm extends FormBase {
    *   The render array defining the elements of the form.
    */
   public function playersReservePageTwo(
-    array &$form,
+    array              &$form,
     FormStateInterface $form_state
-  ) {
+  )
+  {
 
     // Get the values from the form state.
     $values = $form_state->getValues();
     $page_values = $form_state->get('page_values');
+
+    // Get the display date.
+    $display_date = date('D M j, Y', strtotime($page_values['date']));
 
     // Get the phone number from the form state.
     $phone = $values['phone'];
@@ -272,8 +276,8 @@ class PlayersReserveAddForm extends FormBase {
     // the user based on the phone number.
     if ($phone == '4164559575') {
       $uid = 997;
-    }
-    else {
+      $page_values['uid'] = 997;
+    } else {
 
       // The query to get the info about the player.
       $query = $this->database
@@ -285,10 +289,8 @@ class PlayersReserveAddForm extends FormBase {
       $uid = $query->execute()->fetchAll();
 
       $uid = $uid[0]->entity_id;
+      $page_values['uid'] = $uid;
     }
-
-    // Reset the user to null.
-    $user = NULL;
 
     // The wrapper for the form.
     $form['wrapper'] = [
@@ -298,63 +300,16 @@ class PlayersReserveAddForm extends FormBase {
       ],
     ];
 
-    $display_date = date('D M j, Y', strtotime($page_values['date']));
-
     // The form wrapper.
     $form['wrapper']['title'] = [
       '#markup' => '<h1>Reserve: ' . $display_date . '</h1>',
     ];
 
-    // If there is a user, set the form element,
-    // and load the user object.
-    if ($uid) {
-      $form['wrapper']['uid'] = [
-        '#type' => 'hidden',
-        '#default_value' => $uid,
-      ];
-
-      $user = $this->entityTypeManager
-        ->getStorage('user')
-        ->load($uid);
+    if ($uid == NULL) {
+      $form += $this->getUserForm();
     }
 
-    // The form header for title.
-    $form['wrapper']['header'] = [
-      '#markup' => '<h2>Player Information</h2>',
-    ];
-
-    // The first name of the user.
-    $form['wrapper']['first_name'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('First name'),
-      '#default_value' => $user ? $user->field_user_first_name->value : NULL,
-      '#required' => TRUE,
-    ];
-
-    // The last name of the user.
-    $form['wrapper']['last_name'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Last name'),
-      '#default_value' => $user ? $user->field_user_last_name->value : NULL,
-      '#required' => TRUE,
-    ];
-
-    // The email of the user.
-    $form['wrapper']['email'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Email'),
-      '#default_value' => $user ? $user->mail->value : NULL,
-      '#required' => TRUE,
-    ];
-
-    // The form button to the next step in the form.
-    $form['wrapper']['actions']['next_page_two'] = [
-      '#type' => 'submit',
-      '#button_type' => 'primary',
-      '#value' => $this->t('Next'),
-      '#submit' => ['::playersReserveNextSubmitPageTwo'],
-      '#validate' => ['::playersReserveNextValidatePageTwo'],
-    ];
+    $form += $this->getGamesFromNode($page_values);
 
     return $form;
   }
@@ -368,9 +323,10 @@ class PlayersReserveAddForm extends FormBase {
    *   The current state of the form.
    */
   public function playersReserveNextValidatePageTwo(
-    array &$form,
+    array              &$form,
     FormStateInterface $form_state
-  ) {
+  )
+  {
 
     // Get the values from the form state.
     $values = $form_state->getValues();
@@ -393,9 +349,10 @@ class PlayersReserveAddForm extends FormBase {
    *   The current state of the form.
    */
   public function playersReserveNextSubmitPageTwo(
-    array &$form,
+    array              &$form,
     FormStateInterface $form_state
-  ) {
+  )
+  {
 
     // Get the values from the form state.
     $values = $form_state->getValues();
@@ -421,8 +378,7 @@ class PlayersReserveAddForm extends FormBase {
 
       // Get the uid from the values.
       $uid = $values['uid'];
-    }
-    else {
+    } else {
 
       // Begin to create a user.
       $user = User::create();
@@ -483,9 +439,10 @@ class PlayersReserveAddForm extends FormBase {
    *   The render array defining the elements of the form.
    */
   public function playersReservePageThree(
-    array &$form,
+    array              &$form,
     FormStateInterface $form_state
-  ) {
+  )
+  {
 
     // Get the values and page values from the form state.
     $values = $form_state->getValues();
@@ -570,9 +527,10 @@ class PlayersReserveAddForm extends FormBase {
    *   The current state of the form.
    */
   public function playersReserveSubmit(
-    array &$form,
+    array              &$form,
     FormStateInterface $form_state
-  ) {
+  )
+  {
 
     // Set the reserve time.
     $reserve_time = date('Y-m-d H:i:s');
@@ -581,10 +539,27 @@ class PlayersReserveAddForm extends FormBase {
     $values = $form_state->getValues();
     $page_values = $form_state->get('page_values');
 
+    // If there is no uid, create the user.
+    if ($values['uid'] == '') {
+      $username = explode('@', $values['email']);
+      $user = User::create();
+      $user->setPassword('Players@555');
+      $user->enforceIsNew();
+      $user->setEmail($values['email']);
+      $user->set('field_user_last_name', $values['last_name']);
+      $user->set('field_user_first_name', $values['first_name']);
+      $user->setUsername($username[0]);
+      $user->activate();
+      $uid = $user->save();
+    } // Get the uid from the values.
+    else {
+      $uid = $values['uid'];
+    }
+
     // Clear the user entries in the reserve.
     $delete = $this->database->delete('players_reserve')
       ->condition('nid', $values['nid'])
-      ->condition('uid', $page_values['uid'])
+      ->condition('uid', $uid)
       ->execute();
 
     // Need to check if we are using multiple selections or not.
@@ -597,13 +572,14 @@ class PlayersReserveAddForm extends FormBase {
         // If there is a game selected, then add it
         // to the reserve.
         if ($game_type !== 0) {
+          $user = User::load($uid);
           $this->database
             ->insert('players_reserve')
             ->fields([
-              'uid' => $page_values['uid'],
+              'uid' => $uid,
               'nid' => $values['nid'],
-              'first_name' => $page_values['first_name'],
-              'last_name' => $page_values['last_name'],
+              'first_name' => $user->field_user_first_name->value,
+              'last_name' => $user->field_user_last_name->value,
               'game_type' => $game_type,
               'reserve_time' => $reserve_time,
               'seated' => 0,
@@ -617,6 +593,152 @@ class PlayersReserveAddForm extends FormBase {
     $this->messenger->addStatus($this->t('You reservation has been successfully updated.'));
 
     $form_state->setRedirect('players_reserve.reserve');
+  }
+
+  /**
+   * Function to get the games from the node.
+   *
+   * @param array $page_values
+   *   The current page values.
+   * @return array
+   *   Array of games to get used in the form.
+   */
+  private function getGamesFromNode(array $page_values): array
+  {
+
+    // Get the node for the current game.
+    $node = current(
+      $this->entityTypeManager
+        ->getStorage('node')
+        ->loadByProperties(['title' => $page_values['date']])
+    );
+
+    // Load the games.
+    $games = $this->playersService->getGames(
+      $node,
+      FALSE,
+      $page_values['uid']
+    );
+
+    // Reset the options and default values array.
+    $options = [];
+    $default_values = [];
+
+    // Step through each of the games and add the
+    // game title if the flag is set and get the
+    // options.
+    foreach ($games as $game) {
+
+      // Set the options.
+      $options[$game['title']] = $game['title'] . ': ' . $game['start_time'] . ' - ' . $game['end_time'];
+
+      // If the flag for the user as being reserved is
+      // set then add to the default values.
+      if ($game['reserved_flag']) {
+        $default_values[] = $game['title'];
+      }
+    }
+
+    $form['game_wrapper'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'class' => ['players-games-block'],
+      ],
+    ];
+
+    // If there is a user, then add a welcome message.
+    if (
+      isset($page_values['uid']) &&
+      $page_values['uid'] !== NULL
+    ) {
+
+      $user = User::load($page_values['uid']);
+      $form['game_wrapper']['user_info'] = [
+        '#type' => 'markup',
+        '#markup' => 'Welcome, ' . $user->field_user_first_name->value . ' ' . $user->field_user_last_name->value,
+      ];
+
+      $form['uid'] = [
+        '#type' => 'hidden',
+        '#default_value' => $page_values['uid'],
+      ];
+    } else {
+      $form['uid'] = [
+        '#type' => 'hidden',
+        '#default_value' => '',
+      ];
+    }
+
+    // The node id.
+    $form['game_wrapper']['nid'] = [
+      '#type' => 'hidden',
+      '#default_value' => $node->id(),
+    ];
+
+    // The games element for everything other than
+    // Friday nights.
+    $form['game_wrapper']['games'] = [
+      '#type' => 'checkboxes',
+      '#options' => $options,
+      '#title' => $this->t('Game types'),
+      '#default_value' => $default_values,
+    ];
+
+    // Submit button.
+    $form['game_wrapper']['actions']['submit'] = [
+      '#type' => 'submit',
+      '#button_type' => 'primary',
+      '#value' => $this->t('Reserve'),
+      '#submit' => ['::playersReserveSubmit'],
+    ];
+
+    return $form;
+  }
+
+  /**
+   * Get the user form.
+   *
+   * @return array
+   *   Form for the user.
+   */
+  private function getUserForm(): array
+  {
+
+    // The wrapper for the form.
+    $form['user_wrapper'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'class' => ['players-games-block'],
+      ],
+    ];
+
+    // The form header for title.
+    $form['user_wrapper']['header'] = [
+      '#markup' => '<h2>Player Information</h2>',
+    ];
+
+    // The first name of the user.
+    $form['user_wrapper']['first_name'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('First name'),
+      '#required' => TRUE,
+    ];
+
+    // The last name of the user.
+    $form['user_wrapper']['last_name'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Last name'),
+      '#required' => TRUE,
+    ];
+
+    // The email of the user.
+    $form['user_wrapper']['email'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Email'),
+      '#required' => TRUE,
+    ];
+
+    return $form;
   }
 
 }
